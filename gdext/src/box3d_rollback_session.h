@@ -21,7 +21,7 @@ public:
 	static constexpr int SNAPSHOT_SLOTS = 64;
 	static constexpr int MAX_SEND_INPUTS = 64;
 	static constexpr uint32_t PACKET_MAGIC = 0x42523344; // 'D3RB'
-	static constexpr uint8_t PACKET_VERSION = 1;
+	static constexpr uint8_t PACKET_VERSION = 2;
 	static constexpr uint32_t NO_FRAME = 0xFFFFFFFF;
 
 private:
@@ -50,14 +50,18 @@ private:
 	int64_t confirmed_frame[MAX_PLAYERS] = { -1, -1, -1, -1 };
 	int64_t last_input[MAX_PLAYERS] = {};
 	int64_t first_incorrect = -1;
+	uint8_t mispredicted_mask = 0;
+	int last_mispredicted_mask = 0;
 
-	int64_t remote_current_frame = -1;
-	int64_t remote_ack = -1;
-	int64_t remote_hash_frame = -1;
-	uint64_t remote_hash = 0;
-	double advantage_ema = 0.0;
-	double remote_advantage = 0.0;
+	int64_t remote_current_frame[MAX_PLAYERS] = { -1, -1, -1, -1 };
+	int64_t remote_ack[MAX_PLAYERS] = { -1, -1, -1, -1 };
+	int64_t remote_hash_frame[MAX_PLAYERS] = { -1, -1, -1, -1 };
+	uint64_t remote_hash[MAX_PLAYERS] = {};
+	double advantage_ema[MAX_PLAYERS] = {};
+	double remote_advantage[MAX_PLAYERS] = {};
 	int64_t last_throttle_frame = -1;
+	uint64_t local_fingerprint = 0;
+	uint8_t incompatible_mask = 0;
 
 	bool stalled = false;
 	bool desynced = false;
@@ -69,6 +73,7 @@ private:
 	Object *live_simulation() const;
 	FrameEntry &entry_for(int64_t frame);
 	int64_t min_remote_confirmed() const;
+	int64_t min_remote_ack() const;
 	int64_t safe_frame() const;
 	bool sim_has_world() const;
 	int sim_input_count() const;
@@ -100,10 +105,17 @@ public:
 	bool is_desynced() const { return desynced; }
 	int64_t get_desync_frame() const { return desync_frame; }
 	int get_last_rollback_depth() const { return last_rollback_depth; }
+	int get_last_mispredicted_mask() const { return last_mispredicted_mask; }
 	int64_t get_total_rollback_frames() const { return total_rollback_frames; }
 	int64_t get_total_stalled_ticks() const { return total_stalled_ticks; }
-	double get_frame_advantage() const { return advantage_ema; }
+	double get_frame_advantage() const;
 	int64_t get_hash_for_frame(int64_t frame) const;
+	int get_incompatible_peer_mask() const { return incompatible_mask; }
+
+	// Determinism fingerprint of this binary. Peers with different fingerprints
+	// are rejected at the packet layer; games should also compare fingerprints
+	// during matchmaking before starting a session.
+	static int64_t get_build_fingerprint();
 };
 
 } // namespace godot

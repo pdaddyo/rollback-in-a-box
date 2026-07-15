@@ -11,6 +11,7 @@
 #include "recording_replay.h"
 #include "world_snapshot.h"
 
+#include <float.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -166,4 +167,117 @@ int b3r_slot_size( const B3RollbackCtx* ctx, int slot )
 		return -1;
 	}
 	return ctx->slotSizes[slot];
+}
+
+static uint64_t b3r_FnvFold( uint64_t h, uint64_t value )
+{
+	for ( int i = 0; i < 8; ++i )
+	{
+		h ^= ( value >> ( 8 * i ) ) & 0xFF;
+		h *= 0x100000001B3ULL;
+	}
+	return h;
+}
+
+// Canonical scene: mixed shape families in contact, stepped long enough for
+// stacking, sliding, and sleep transitions to exercise the solver paths whose
+// float behavior differs across compilers and SIMD widths.
+static uint64_t b3r_SimulationProbe( void )
+{
+	b3WorldDef worldDef = b3DefaultWorldDef();
+	worldDef.workerCount = 1;
+	b3WorldId worldId = b3CreateWorld( &worldDef );
+
+	{
+		b3BodyDef bodyDef = b3DefaultBodyDef();
+		bodyDef.position = ( b3Vec3 ){ 0.0f, -1.0f, 0.0f };
+		b3BodyId ground = b3CreateBody( worldId, &bodyDef );
+		b3ShapeDef shapeDef = b3DefaultShapeDef();
+		b3BoxHull hull = b3MakeBoxHull( 20.0f, 1.0f, 20.0f );
+		b3CreateHullShape( ground, &shapeDef, &hull.base );
+	}
+
+	for ( int i = 0; i < 6; ++i )
+	{
+		b3BodyDef bodyDef = b3DefaultBodyDef();
+		bodyDef.type = b3_dynamicBody;
+		bodyDef.position = ( b3Vec3 ){ 0.05f * (float)i, 0.5f + 1.05f * (float)i, 0.02f * (float)i };
+		b3BodyId body = b3CreateBody( worldId, &bodyDef );
+		b3ShapeDef shapeDef = b3DefaultShapeDef();
+		shapeDef.density = 300.0f;
+		b3BoxHull hull = b3MakeBoxHull( 0.5f, 0.5f, 0.5f );
+		b3CreateHullShape( body, &shapeDef, &hull.base );
+	}
+
+	{
+		b3BodyDef bodyDef = b3DefaultBodyDef();
+		bodyDef.type = b3_dynamicBody;
+		bodyDef.position = ( b3Vec3 ){ 2.5f, 4.0f, 0.0f };
+		bodyDef.linearVelocity = ( b3Vec3 ){ -1.5f, 0.0f, 0.75f };
+		b3BodyId body = b3CreateBody( worldId, &bodyDef );
+		b3ShapeDef shapeDef = b3DefaultShapeDef();
+		shapeDef.density = 300.0f;
+		b3Sphere sphere = { { 0.0f, 0.0f, 0.0f }, 0.5f };
+		b3CreateSphereShape( body, &shapeDef, &sphere );
+	}
+
+	{
+		b3BodyDef bodyDef = b3DefaultBodyDef();
+		bodyDef.type = b3_dynamicBody;
+		bodyDef.position = ( b3Vec3 ){ -2.0f, 2.0f, 1.0f };
+		b3BodyId body = b3CreateBody( worldId, &bodyDef );
+		b3ShapeDef shapeDef = b3DefaultShapeDef();
+		shapeDef.density = 300.0f;
+		b3Capsule capsule = { { 0.0f, -0.4f, 0.0f }, { 0.0f, 0.4f, 0.0f }, 0.3f };
+		b3CreateCapsuleShape( body, &shapeDef, &capsule );
+	}
+
+	uint64_t h = 0xCBF29CE484222325ULL;
+	for ( int frame = 0; frame < 90; ++frame )
+	{
+		b3World_Step( worldId, 1.0f / 60.0f, 4 );
+		if ( ( frame + 1 ) % 30 == 0 )
+		{
+			h = b3r_FnvFold( h, b3HashWorldState( b3GetWorldFromId( worldId ) ) );
+		}
+	}
+
+	b3DestroyWorld( worldId );
+	return h;
+}
+
+uint64_t b3r_determinism_fingerprint( void )
+{
+	static uint64_t cached = 0;
+	if ( cached != 0 )
+	{
+		return cached;
+	}
+
+	uint64_t h = 0xCBF29CE484222325ULL;
+
+	b3Version version = b3GetVersion();
+	h = b3r_FnvFold( h, (uint64_t)version.major << 32 | (uint64_t)version.minor << 16 | (uint64_t)version.revision );
+
+	h = b3r_FnvFold( h, (uint64_t)B3_SIMD_WIDTH );
+#if defined( B3_SIMD_SSE2 )
+	h = b3r_FnvFold( h, 1 );
+#elif defined( B3_SIMD_NEON )
+	h = b3r_FnvFold( h, 2 );
+#elif defined( B3_SIMD_NONE )
+	h = b3r_FnvFold( h, 3 );
+#else
+	h = b3r_FnvFold( h, 4 );
+#endif
+	h = b3r_FnvFold( h, (uint64_t)(int64_t)FLT_EVAL_METHOD );
+
+	// Snapshot images are raw struct memory: layout drift is a compatibility break.
+	h = b3r_FnvFold( h, (uint64_t)sizeof( b3World ) );
+	h = b3r_FnvFold( h, (uint64_t)sizeof( b3WorldDef ) );
+	h = b3r_FnvFold( h, (uint64_t)sizeof( b3Transform ) );
+
+	h = b3r_FnvFold( h, b3r_SimulationProbe() );
+
+	cached = h != 0 ? h : 1;
+	return cached;
 }
