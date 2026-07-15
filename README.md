@@ -1,6 +1,6 @@
 # rollback-in-a-box
 
-Deterministic network rollback physics for Godot, powered by Box3D.
+Deterministic network rollback physics for Godot, powered by [Box3D](https://github.com/erincatto/box3d) by Erin Catto.
 
 `rollback-in-a-box` is a Godot 4 GDExtension with three deliberately separate
 layers:
