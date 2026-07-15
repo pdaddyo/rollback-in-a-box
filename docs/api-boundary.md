@@ -70,3 +70,8 @@ The raw binding never calls rollback code. The snapshot layer never calls the
 network session. The network session calls only the simulation interface. No
 extension layer contains game-specific entities, weapons, vehicles, terrain,
 scoring, or rendering metadata.
+
+The implementation can run as its own GDExtension or be embedded through the
+`box3d_rollback_core` CMake object target. Embedded hosts call
+`register_box3d_rollback_classes()` from their initializer; this changes only
+linkage, not the API or ownership boundary.

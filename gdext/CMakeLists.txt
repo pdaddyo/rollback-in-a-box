@@ -14,8 +14,10 @@ endif()
 add_subdirectory(extern/box3d)
 add_subdirectory(extern/godot-cpp)
 
-add_library(box3d_rollback SHARED
-    src/register_types.cpp
+option(BOX3D_ROLLBACK_BUILD_EXTENSION "Build the standalone GDExtension library" ON)
+
+add_library(box3d_rollback_core OBJECT
+    src/box3d_rollback_classes.cpp
     src/box3d_raw.cpp
     src/box3d_rollback_world.cpp
     src/box3d_rollback_session.cpp
@@ -23,11 +25,29 @@ add_library(box3d_rollback SHARED
     src/rollback_shim.c
 )
 
-target_include_directories(box3d_rollback PRIVATE
+target_include_directories(box3d_rollback_core PUBLIC
     src
     extern/box3d/src
 )
 
+target_link_libraries(box3d_rollback_core PUBLIC godot-cpp box3d)
+
+set_target_properties(box3d_rollback_core PROPERTIES
+    CXX_STANDARD 17
+    CXX_EXTENSIONS OFF
+    POSITION_INDEPENDENT_CODE ON
+)
+
+if(NOT BOX3D_ROLLBACK_BUILD_EXTENSION)
+    return()
+endif()
+
+add_library(box3d_rollback SHARED
+    src/register_types.cpp
+    $<TARGET_OBJECTS:box3d_rollback_core>
+)
+
+target_include_directories(box3d_rollback PRIVATE src)
 target_link_libraries(box3d_rollback PRIVATE godot-cpp box3d)
 
 get_target_property(GODOTCPP_SUFFIX godot-cpp GODOTCPP_SUFFIX)

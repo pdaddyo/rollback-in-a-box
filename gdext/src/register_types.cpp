@@ -4,10 +4,7 @@
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/godot.hpp>
 
-#include "box3d_replay.h"
-#include "box3d_raw.h"
-#include "box3d_rollback_session.h"
-#include "box3d_rollback_world.h"
+#include "box3d_rollback_classes.h"
 
 using namespace godot;
 
@@ -15,11 +12,7 @@ void initialize_box3d_rollback_module(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
-	GDREGISTER_CLASS(Box3DBuffer);
-	GDREGISTER_CLASS(Box3DRaw);
-	GDREGISTER_CLASS(Box3DRollbackWorld);
-	GDREGISTER_CLASS(Box3DRollbackSession);
-	GDREGISTER_CLASS(Box3DReplay);
+	register_box3d_rollback_classes();
 }
 
 void uninitialize_box3d_rollback_module(ModuleInitializationLevel p_level) {

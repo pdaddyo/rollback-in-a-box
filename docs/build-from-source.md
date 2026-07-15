@@ -62,3 +62,23 @@ Binaries are written to `addons/box3d_rollback/bin/`, where
 When this repository is mounted as a source dependency, set
 `BOX3D_ROLLBACK_OUTPUT_DIR` to the consuming Godot project's
 `addons/box3d_rollback/bin` directory.
+
+## Embedding In Another GDExtension
+
+Projects that already have a native GDExtension can link the reusable classes
+into that library instead of loading a second godot-cpp library:
+
+```cmake
+set(BOX3D_ROLLBACK_BUILD_EXTENSION OFF CACHE BOOL "" FORCE)
+add_subdirectory(vendor/rollback-in-a-box/gdext rollback-in-a-box)
+
+target_sources(my_extension PRIVATE $<TARGET_OBJECTS:box3d_rollback_core>)
+target_link_libraries(my_extension PRIVATE godot-cpp box3d)
+target_include_directories(my_extension PRIVATE
+  vendor/rollback-in-a-box/gdext/src
+)
+```
+
+Call `godot::register_box3d_rollback_classes()` from the host extension's
+scene-level initializer. This keeps a single Box3D instance and a single
+godot-cpp registration context while preserving the source boundary.
