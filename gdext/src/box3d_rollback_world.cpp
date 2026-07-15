@@ -2,11 +2,14 @@
 
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/error_macros.hpp>
+#include <godot_cpp/variant/dictionary.hpp>
 
 #include "box3d/collision.h"
 
 #include <chrono>
+#include <cmath>
 #include <cstring>
+#include <unordered_set>
 
 using namespace godot;
 
@@ -271,6 +274,161 @@ int Box3DRollbackWorld::get_live_body_count() const {
 	return count;
 }
 
+int Box3DRollbackWorld::get_awake_body_count() const {
+	return has_world() ? b3World_GetAwakeBodyCount(world_id) : 0;
+}
+
+int64_t Box3DRollbackWorld::get_body_id(int handle) const {
+	ERR_FAIL_INDEX_V(handle, (int)bodies.size(), 0);
+	return (int64_t)bodies[(size_t)handle];
+}
+
+int64_t Box3DRollbackWorld::get_world_id() const {
+	return has_world() ? (int64_t)b3StoreWorldId(world_id) : 0;
+}
+
+void Box3DRollbackWorld::set_player_bodies(int player, const PackedInt64Array &handles) {
+	ERR_FAIL_COND(player < 0 || player >= input_count);
+	if ((int)player_body_handles.size() < input_count) {
+		player_body_handles.resize((size_t)input_count);
+	}
+	std::vector<int> &list = player_body_handles[(size_t)player];
+	list.clear();
+	for (int64_t handle : handles) {
+		ERR_FAIL_INDEX((int)handle, (int)bodies.size());
+		list.push_back((int)handle);
+	}
+}
+
+namespace {
+
+struct AffectedCtx {
+	std::unordered_set<uint64_t> *visited = nullptr;
+	std::vector<b3BodyId> *queue = nullptr;
+};
+
+bool traversable(b3BodyId body) {
+	return b3Body_IsValid(body) && b3Body_GetType(body) != b3_staticBody;
+}
+
+void affected_visit(AffectedCtx &ctx, b3BodyId body) {
+	if (!traversable(body)) {
+		return;
+	}
+	const uint64_t key = b3StoreBodyId(body);
+	if (ctx.visited->insert(key).second) {
+		ctx.queue->push_back(body);
+	}
+}
+
+bool affected_overlap_cb(b3ShapeId shapeId, void *context) {
+	AffectedCtx *ctx = static_cast<AffectedCtx *>(context);
+	affected_visit(*ctx, b3Shape_GetBody(shapeId));
+	return true;
+}
+
+} // namespace
+
+PackedInt64Array Box3DRollbackWorld::compute_affected_bodies(int players_mask, int window_frames) const {
+	PackedInt64Array out;
+	ERR_FAIL_COND_V(!has_world(), out);
+	if (window_frames < 1) {
+		window_frames = 1;
+	}
+
+	std::unordered_set<uint64_t> visited;
+	std::vector<b3BodyId> queue;
+	AffectedCtx ctx = { &visited, &queue };
+
+	for (size_t p = 0; p < player_body_handles.size(); ++p) {
+		if ((players_mask & (1 << (int)p)) == 0) {
+			continue;
+		}
+		for (int handle : player_body_handles[p]) {
+			if (handle >= 0 && handle < (int)bodies.size() && bodies[(size_t)handle] != 0) {
+				affected_visit(ctx, b3LoadBodyId(bodies[(size_t)handle]));
+			}
+		}
+	}
+
+	std::vector<b3JointId> joints;
+	std::vector<b3ContactData> contacts;
+	size_t cursor = 0;
+	while (cursor < queue.size()) {
+		const b3BodyId body = queue[cursor++];
+
+		const int joint_count = b3Body_GetJointCount(body);
+		if (joint_count > 0) {
+			joints.resize((size_t)joint_count);
+			const int n = b3Body_GetJoints(body, joints.data(), joint_count);
+			for (int i = 0; i < n; ++i) {
+				affected_visit(ctx, b3Joint_GetBodyA(joints[(size_t)i]));
+				affected_visit(ctx, b3Joint_GetBodyB(joints[(size_t)i]));
+			}
+		}
+
+		const int contact_capacity = b3Body_GetContactCapacity(body);
+		if (contact_capacity > 0) {
+			contacts.resize((size_t)contact_capacity);
+			const int n = b3Body_GetContactData(body, contacts.data(), contact_capacity);
+			for (int i = 0; i < n; ++i) {
+				affected_visit(ctx, b3Shape_GetBody(contacts[(size_t)i].shapeIdA));
+				affected_visit(ctx, b3Shape_GetBody(contacts[(size_t)i].shapeIdB));
+			}
+		}
+
+		// Anything the body could reach while the window is resimulated joins
+		// the closure. The margin is deliberately conservative: straight-line
+		// travel at the current speed plus a fixed slop for contact drift.
+		b3AABB aabb = b3Body_ComputeAABB(body);
+		const b3Vec3 vel = b3Body_GetLinearVelocity(body);
+		const float dt = time_step * (float)window_frames;
+		const float margin = 0.5f;
+		const float ex = std::fabs(vel.x) * dt + margin;
+		const float ey = std::fabs(vel.y) * dt + margin;
+		const float ez = std::fabs(vel.z) * dt + margin;
+		aabb.lowerBound.x -= ex;
+		aabb.lowerBound.y -= ey;
+		aabb.lowerBound.z -= ez;
+		aabb.upperBound.x += ex;
+		aabb.upperBound.y += ey;
+		aabb.upperBound.z += ez;
+		b3World_OverlapAABB(world_id, aabb, b3DefaultQueryFilter(), affected_overlap_cb, &ctx);
+	}
+
+	out.resize((int64_t)queue.size());
+	for (size_t i = 0; i < queue.size(); ++i) {
+		out[(int64_t)i] = (int64_t)b3StoreBodyId(queue[i]);
+	}
+	out.sort();
+	return out;
+}
+
+void Box3DRollbackWorld::rollback_begin(int64_t target_frame, int window_frames, int players_mask) {
+	if (!has_world()) {
+		return;
+	}
+	last_scope.target_frame = target_frame;
+	last_scope.window = MAX(window_frames, 0);
+	last_scope.mispredicted_mask = players_mask;
+	last_scope.affected_bodies = (int)compute_affected_bodies(players_mask, MAX(last_scope.window, 1)).size();
+	last_scope.awake_bodies = get_awake_body_count();
+	last_scope.total_bodies = get_live_body_count();
+	last_scope.valid = true;
+}
+
+Dictionary Box3DRollbackWorld::get_last_rollback_scope() const {
+	Dictionary out;
+	out["valid"] = last_scope.valid;
+	out["target_frame"] = last_scope.target_frame;
+	out["window"] = last_scope.window;
+	out["mispredicted_mask"] = last_scope.mispredicted_mask;
+	out["affected_bodies"] = last_scope.affected_bodies;
+	out["awake_bodies"] = last_scope.awake_bodies;
+	out["total_bodies"] = last_scope.total_bodies;
+	return out;
+}
+
 PackedFloat32Array Box3DRollbackWorld::get_transforms() const {
 	PackedFloat32Array out;
 	out.resize((int64_t)bodies.size() * 7);
@@ -366,6 +524,13 @@ void Box3DRollbackWorld::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("state_hash"), &Box3DRollbackWorld::state_hash);
 	ClassDB::bind_method(D_METHOD("get_body_count"), &Box3DRollbackWorld::get_body_count);
 	ClassDB::bind_method(D_METHOD("get_live_body_count"), &Box3DRollbackWorld::get_live_body_count);
+	ClassDB::bind_method(D_METHOD("get_awake_body_count"), &Box3DRollbackWorld::get_awake_body_count);
+	ClassDB::bind_method(D_METHOD("get_body_id", "handle"), &Box3DRollbackWorld::get_body_id);
+	ClassDB::bind_method(D_METHOD("get_world_id"), &Box3DRollbackWorld::get_world_id);
+	ClassDB::bind_method(D_METHOD("set_player_bodies", "player", "handles"), &Box3DRollbackWorld::set_player_bodies);
+	ClassDB::bind_method(D_METHOD("compute_affected_bodies", "players_mask", "window_frames"), &Box3DRollbackWorld::compute_affected_bodies);
+	ClassDB::bind_method(D_METHOD("get_last_rollback_scope"), &Box3DRollbackWorld::get_last_rollback_scope);
+	ClassDB::bind_method(D_METHOD("rollback_begin", "target_frame", "window_frames", "players_mask"), &Box3DRollbackWorld::rollback_begin);
 	ClassDB::bind_method(D_METHOD("get_transforms"), &Box3DRollbackWorld::get_transforms);
 	ClassDB::bind_method(D_METHOD("get_body_meta"), &Box3DRollbackWorld::get_body_meta);
 	ClassDB::bind_method(D_METHOD("get_body_transform", "handle"), &Box3DRollbackWorld::get_body_transform);

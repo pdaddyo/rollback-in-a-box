@@ -6,25 +6,37 @@
 #include <godot_cpp/core/object.hpp>
 #include <godot_cpp/variant/variant.hpp>
 
+#include "rollback_shim.h"
+
 #include <cstring>
+#include <type_traits>
 
 using namespace godot;
 
 namespace {
 
+// Explicit little-endian byte layout so the wire format does not depend on
+// host byte order.
 template <typename T>
 void write_le(uint8_t *buf, size_t offset, T value) {
-	std::memcpy(buf + offset, &value, sizeof(T));
+	using U = std::make_unsigned_t<T>;
+	const U u = (U)value;
+	for (size_t i = 0; i < sizeof(T); ++i) {
+		buf[offset + i] = (uint8_t)(u >> (8 * i));
+	}
 }
 
 template <typename T>
 T read_le(const uint8_t *buf, size_t offset) {
-	T value;
-	std::memcpy(&value, buf + offset, sizeof(T));
-	return value;
+	using U = std::make_unsigned_t<T>;
+	U u = 0;
+	for (size_t i = 0; i < sizeof(T); ++i) {
+		u |= (U)buf[offset + i] << (8 * i);
+	}
+	return (T)u;
 }
 
-constexpr size_t HEADER_SIZE = 40;
+constexpr size_t HEADER_SIZE = 48;
 
 } // namespace
 
@@ -85,6 +97,28 @@ Box3DRollbackSession::FrameEntry &Box3DRollbackSession::entry_for(int64_t f) {
 		e.confirmed_mask = 0;
 	}
 	return e;
+}
+
+int64_t Box3DRollbackSession::min_remote_ack() const {
+	int64_t m = INT64_MAX;
+	for (int p = 0; p < num_players; ++p) {
+		if (p == local_player) {
+			continue;
+		}
+		m = MIN(m, remote_ack[p]);
+	}
+	return m == INT64_MAX ? -1 : m;
+}
+
+double Box3DRollbackSession::get_frame_advantage() const {
+	double m = 0.0;
+	for (int p = 0; p < num_players; ++p) {
+		if (p == local_player) {
+			continue;
+		}
+		m = MAX(m, advantage_ema[p]);
+	}
+	return m;
 }
 
 int64_t Box3DRollbackSession::min_remote_confirmed() const {
@@ -157,14 +191,24 @@ void Box3DRollbackSession::start() {
 	last_rollback_depth = 0;
 	total_rollback_frames = 0;
 	total_stalled_ticks = 0;
-	remote_current_frame = -1;
-	remote_ack = -1;
-	remote_hash_frame = -1;
-	remote_hash = 0;
-	advantage_ema = 0.0;
-	remote_advantage = 0.0;
+	for (int p = 0; p < MAX_PLAYERS; ++p) {
+		remote_current_frame[p] = -1;
+		remote_ack[p] = -1;
+		remote_hash_frame[p] = -1;
+		remote_hash[p] = 0;
+		advantage_ema[p] = 0.0;
+		remote_advantage[p] = 0.0;
+	}
 	last_throttle_frame = -1;
+	local_fingerprint = b3r_determinism_fingerprint();
+	incompatible_mask = 0;
+	mispredicted_mask = 0;
+	last_mispredicted_mask = 0;
 	active = true;
+}
+
+int64_t Box3DRollbackSession::get_build_fingerprint() {
+	return (int64_t)b3r_determinism_fingerprint();
 }
 
 void Box3DRollbackSession::sim_one(int64_t f) {
@@ -184,6 +228,12 @@ void Box3DRollbackSession::sim_one(int64_t f) {
 
 void Box3DRollbackSession::do_rollback() {
 	const int64_t target = first_incorrect;
+	last_mispredicted_mask = mispredicted_mask;
+	Object *sim = live_simulation();
+	if (sim != nullptr && sim->has_method("rollback_begin")) {
+		sim->call("rollback_begin", target, (int)(current_frame - target), (int)mispredicted_mask);
+	}
+	mispredicted_mask = 0;
 	bool ok = sim_load_state((int)(target % SNAPSHOT_SLOTS));
 	ERR_FAIL_COND_MSG(!ok, "Box3DRollbackSession: snapshot restore failed.");
 	last_rollback_depth = (int)(current_frame - target);
@@ -211,7 +261,14 @@ bool Box3DRollbackSession::tick(int64_t local_input) {
 			total_stalled_ticks++;
 			return false;
 		}
-		if (advantage_ema - remote_advantage > 2.0 && current_frame - last_throttle_frame >= 8) {
+		bool throttle = false;
+		for (int p = 0; p < num_players; ++p) {
+			if (p != local_player && advantage_ema[p] - remote_advantage[p] > 2.0) {
+				throttle = true;
+				break;
+			}
+		}
+		if (throttle && current_frame - last_throttle_frame >= 8) {
 			last_throttle_frame = current_frame;
 			stalled = true;
 			total_stalled_ticks++;
@@ -238,7 +295,7 @@ PackedByteArray Box3DRollbackSession::get_packet() {
 		return out;
 	}
 	const int64_t latest = current_frame + input_delay - 1;
-	int64_t start_f = remote_ack + 1;
+	int64_t start_f = min_remote_ack() + 1;
 	start_f = MAX(start_f, latest - (MAX_SEND_INPUTS - 1));
 	start_f = MAX(start_f, (int64_t)0);
 	int count = latest >= start_f ? (int)(latest - start_f + 1) : 0;
@@ -247,7 +304,7 @@ PackedByteArray Box3DRollbackSession::get_packet() {
 	write_le<uint32_t>(w, 0, PACKET_MAGIC);
 	write_le<uint8_t>(w, 4, PACKET_VERSION);
 	write_le<uint8_t>(w, 5, (uint8_t)local_player);
-	const int adv = (int)CLAMP(advantage_ema, -120.0, 120.0);
+	const int adv = (int)CLAMP(get_frame_advantage(), -120.0, 120.0);
 	write_le<int8_t>(w, 6, (int8_t)adv);
 	write_le<uint8_t>(w, 7, 0);
 	write_le<uint32_t>(w, 8, (uint32_t)current_frame);
@@ -267,6 +324,7 @@ PackedByteArray Box3DRollbackSession::get_packet() {
 	write_le<uint32_t>(w, 32, (uint32_t)start_f);
 	write_le<uint16_t>(w, 36, (uint16_t)count);
 	write_le<uint16_t>(w, 38, 0);
+	write_le<uint64_t>(w, 40, local_fingerprint);
 	for (int i = 0; i < count; ++i) {
 		const FrameEntry &fe = ring[(start_f + i) % RING];
 		const int64_t value = (fe.frame == start_f + i) ? fe.input[local_player] : 0;
@@ -287,6 +345,14 @@ void Box3DRollbackSession::ingest_packet(const PackedByteArray &packet) {
 	if (sender == local_player || sender >= num_players) {
 		return;
 	}
+	const uint64_t sender_fingerprint = read_le<uint64_t>(r, 40);
+	if (sender_fingerprint != local_fingerprint) {
+		if ((incompatible_mask & (1 << sender)) == 0) {
+			incompatible_mask |= (1 << sender);
+			emit_signal("peer_incompatible", sender, (int64_t)sender_fingerprint);
+		}
+		return;
+	}
 	const int64_t start_f = (int64_t)read_le<uint32_t>(r, 32);
 	const int count = read_le<uint16_t>(r, 36);
 	if (packet.size() != (int64_t)(HEADER_SIZE + 8 * (size_t)count)) {
@@ -300,18 +366,18 @@ void Box3DRollbackSession::ingest_packet(const PackedByteArray &packet) {
 	if (their_frame > far_horizon + RING) {
 		return;
 	}
-	remote_current_frame = MAX(remote_current_frame, their_frame);
+	remote_current_frame[sender] = MAX(remote_current_frame[sender], their_frame);
 	const uint32_t ack = read_le<uint32_t>(r, 12);
 	const int64_t latest_local = current_frame + input_delay - 1;
 	if (ack != NO_FRAME && (int64_t)ack <= latest_local) {
-		remote_ack = MAX(remote_ack, (int64_t)ack);
+		remote_ack[sender] = MAX(remote_ack[sender], (int64_t)ack);
 	}
-	advantage_ema = 0.9 * advantage_ema + 0.1 * (double)(current_frame - their_frame);
-	remote_advantage = (double)read_le<int8_t>(r, 6);
+	advantage_ema[sender] = 0.9 * advantage_ema[sender] + 0.1 * (double)(current_frame - their_frame);
+	remote_advantage[sender] = (double)read_le<int8_t>(r, 6);
 	const uint32_t hash_frame = read_le<uint32_t>(r, 16);
-	if (hash_frame != NO_FRAME && (int64_t)hash_frame > remote_hash_frame && (int64_t)hash_frame <= their_frame) {
-		remote_hash_frame = (int64_t)hash_frame;
-		remote_hash = read_le<uint64_t>(r, 24);
+	if (hash_frame != NO_FRAME && (int64_t)hash_frame > remote_hash_frame[sender] && (int64_t)hash_frame <= their_frame) {
+		remote_hash_frame[sender] = (int64_t)hash_frame;
+		remote_hash[sender] = read_le<uint64_t>(r, 24);
 	}
 	for (int i = 0; i < count; ++i) {
 		const int64_t f = start_f + i;
@@ -328,6 +394,7 @@ void Box3DRollbackSession::ingest_packet(const PackedByteArray &packet) {
 			if (first_incorrect < 0 || f < first_incorrect) {
 				first_incorrect = f;
 			}
+			mispredicted_mask |= (uint8_t)(1 << sender);
 		}
 		e.input[sender] = value;
 		e.confirmed_mask |= (1 << sender);
@@ -346,20 +413,24 @@ void Box3DRollbackSession::ingest_packet(const PackedByteArray &packet) {
 }
 
 void Box3DRollbackSession::check_remote_hash() {
-	if (desynced || remote_hash_frame < 0) {
+	if (desynced || first_incorrect >= 0) {
 		return;
 	}
-	if (remote_hash_frame > safe_frame() || first_incorrect >= 0) {
-		return;
-	}
-	const HashEntry &h = hashes[remote_hash_frame % RING];
-	if (h.frame != remote_hash_frame) {
-		return;
-	}
-	if (h.hash != remote_hash) {
-		desynced = true;
-		desync_frame = remote_hash_frame;
-		emit_signal("desync_detected", remote_hash_frame);
+	const int64_t sf = safe_frame();
+	for (int p = 0; p < num_players; ++p) {
+		if (p == local_player || remote_hash_frame[p] < 0 || remote_hash_frame[p] > sf) {
+			continue;
+		}
+		const HashEntry &h = hashes[remote_hash_frame[p] % RING];
+		if (h.frame != remote_hash_frame[p]) {
+			continue;
+		}
+		if (h.hash != remote_hash[p]) {
+			desynced = true;
+			desync_frame = remote_hash_frame[p];
+			emit_signal("desync_detected", remote_hash_frame[p]);
+			return;
+		}
 	}
 }
 
@@ -383,9 +454,13 @@ void Box3DRollbackSession::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_desynced"), &Box3DRollbackSession::is_desynced);
 	ClassDB::bind_method(D_METHOD("get_desync_frame"), &Box3DRollbackSession::get_desync_frame);
 	ClassDB::bind_method(D_METHOD("get_last_rollback_depth"), &Box3DRollbackSession::get_last_rollback_depth);
+	ClassDB::bind_method(D_METHOD("get_last_mispredicted_mask"), &Box3DRollbackSession::get_last_mispredicted_mask);
 	ClassDB::bind_method(D_METHOD("get_total_rollback_frames"), &Box3DRollbackSession::get_total_rollback_frames);
 	ClassDB::bind_method(D_METHOD("get_total_stalled_ticks"), &Box3DRollbackSession::get_total_stalled_ticks);
 	ClassDB::bind_method(D_METHOD("get_frame_advantage"), &Box3DRollbackSession::get_frame_advantage);
 	ClassDB::bind_method(D_METHOD("get_hash_for_frame", "frame"), &Box3DRollbackSession::get_hash_for_frame);
+	ClassDB::bind_method(D_METHOD("get_incompatible_peer_mask"), &Box3DRollbackSession::get_incompatible_peer_mask);
+	ClassDB::bind_static_method("Box3DRollbackSession", D_METHOD("get_build_fingerprint"), &Box3DRollbackSession::get_build_fingerprint);
 	ADD_SIGNAL(MethodInfo("desync_detected", PropertyInfo(Variant::INT, "frame")));
+	ADD_SIGNAL(MethodInfo("peer_incompatible", PropertyInfo(Variant::INT, "player"), PropertyInfo(Variant::INT, "fingerprint")));
 }

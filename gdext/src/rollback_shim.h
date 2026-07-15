@@ -35,6 +35,15 @@ uint64_t b3r_world_hash( b3WorldId worldId );
 
 int b3r_slot_size( const B3RollbackCtx* ctx, int slot );
 
+// Determinism fingerprint of this binary. Folds the Box3D version, SIMD
+// flavor and width, the compiler's float evaluation mode, snapshot-relevant
+// struct layouts, and the hashed result of a canonical simulation probe
+// (a fixed scene stepped 90 frames). Two builds with equal fingerprints
+// produced bit-identical results on the probe; builds with different
+// fingerprints must not be assumed to resimulate each other's frames.
+// Computed once and cached; the probe world is created and destroyed inside.
+uint64_t b3r_determinism_fingerprint( void );
+
 #ifdef __cplusplus
 }
 #endif

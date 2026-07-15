@@ -79,10 +79,50 @@ Treat a desync as terminal for the match unless the application has an explicit
 authoritative resynchronization protocol. This extension detects divergence;
 it does not choose an authority or transfer full game state.
 
+## Multiplayer topology
+
+Two to four players are supported and tested. Packets are broadcast: every
+peer sends the same packet to every other peer and ingests packets from all of
+them. The session tracks acknowledgement, frame advantage, and confirmed
+hashes per peer; the resend window covers the slowest peer's acknowledgement
+and pacing throttles against the most-behind peer. `tests/
+test_session_multiplayer.gd` exercises 3- and 4-player sessions under latency,
+jitter, and loss.
+
+## Rollback scoping
+
+Before restoring a snapshot, the session calls the optional simulation method
+`rollback_begin(target_frame, window_frames, players_mask)` with the mask of
+players whose inputs were mispredicted. Resimulation remains full-world; the
+mask drives the affected-set analysis described in
+[Partial resimulation](partial-resimulation.md).
+`get_last_mispredicted_mask()` exposes the mask of the most recent rollback.
+
 ## Packet compatibility
 
-Packets are little-endian, begin with magic `D3RB`, and currently use protocol
-version 1. The payload carries sender identity, pacing data, current frame,
-acknowledgement, safe-frame hash, and up to 64 redundant input values. Packet
+Packets are little-endian regardless of host byte order, begin with magic
+`D3RB`, and currently use protocol version 2. The payload carries sender
+identity, pacing data, current frame, acknowledgement, safe-frame hash, the
+sender's determinism fingerprint, and up to 64 redundant input values. Packet
 contents are opaque to the application. Invalid version, sender, size, count,
 or far-future frame data is discarded.
+
+## Build compatibility and cross-platform play
+
+Determinism is a property of the compiled binary, not the platform. Every
+packet carries the sender's determinism fingerprint
+(`Box3DRollbackSession.get_build_fingerprint()`), which folds together the
+Box3D version, SIMD flavor and width, the compiler's float evaluation mode,
+snapshot-relevant struct layouts, and the hashed result of a canonical
+simulation probe stepped 90 frames at startup. Two builds with equal
+fingerprints produced bit-identical results on the probe.
+
+A packet whose fingerprint differs from the local one is dropped;
+`peer_incompatible(player, fingerprint)` is emitted once per peer and
+`get_incompatible_peer_mask()` reports which peers were rejected. Games should
+also exchange fingerprints during matchmaking so mismatched builds never reach
+a session. Cross-platform play is allowed exactly when the fingerprints match;
+the equal-probe requirement makes "identical builds" an enforced gate instead
+of a convention. The probe is a strong filter, not a proof — long-tail solver
+paths the probe does not reach can still diverge, which the confirmed-hash
+exchange then catches.

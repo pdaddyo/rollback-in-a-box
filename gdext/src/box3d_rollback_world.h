@@ -37,9 +37,21 @@ private:
 		bool valid = false;
 	};
 
+	struct RollbackScope {
+		int64_t target_frame = -1;
+		int window = 0;
+		int mispredicted_mask = 0;
+		int affected_bodies = 0;
+		int awake_bodies = 0;
+		int total_bodies = 0;
+		bool valid = false;
+	};
+
 	b3WorldId world_id = b3_nullWorldId;
 	B3RollbackCtx *rollback = nullptr;
 	std::vector<SideState> side_slots;
+	std::vector<std::vector<int>> player_body_handles;
+	RollbackScope last_scope;
 
 	uint64_t frame = 0;
 	std::vector<uint64_t> bodies;
@@ -88,6 +100,17 @@ public:
 
 	int get_body_count() const { return (int)bodies.size(); }
 	int get_live_body_count() const;
+	int get_awake_body_count() const;
+	int64_t get_body_id(int handle) const;
+	int64_t get_world_id() const;
+
+	// Partial-resimulation scoping. Games declare which bodies each player's
+	// input directly influences; the affected set of a rollback is the closure
+	// of those seeds over contacts, joints, and swept-AABB proximity for the
+	// resimulated window. Static bodies do not propagate the closure.
+	void set_player_bodies(int player, const PackedInt64Array &handles);
+	PackedInt64Array compute_affected_bodies(int players_mask, int window_frames) const;
+	Dictionary get_last_rollback_scope() const;
 	PackedFloat32Array get_transforms() const;
 	PackedFloat32Array get_body_meta() const;
 	Transform3D get_body_transform(int handle) const;
@@ -107,6 +130,8 @@ public:
 	void set_sub_steps(int count) { sub_steps = count < 1 ? 1 : count; }
 	int get_sub_steps() const { return sub_steps; }
 	double get_last_step_time_ms() const { return last_step_time_ms; }
+
+	void rollback_begin(int64_t target_frame, int window_frames, int players_mask);
 
 	bool rollback_has_world() const { return has_world(); }
 	int rollback_get_input_count() const { return input_count; }

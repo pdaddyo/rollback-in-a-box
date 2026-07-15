@@ -10,7 +10,7 @@ if printf '%s\n' "$import_output" | grep -E 'SCRIPT ERROR:|Parse Error:|FAIL:' >
   exit 1
 fi
 
-for t in test_smoke test_raw_api test_determinism test_session_loopback test_replay; do
+for t in test_smoke test_raw_api test_determinism test_compat test_session_loopback test_session_multiplayer test_partial_resim test_replay; do
   echo "=== $t ==="
   status=0
   output=$("$GODOT" --headless -s "tests/$t.gd" 2>&1) || status=$?

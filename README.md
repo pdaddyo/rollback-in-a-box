@@ -7,8 +7,9 @@ layers:
 
 - The complete public Box3D C API, generated into a Godot-facing `Box3D` class.
 - Deterministic full-world snapshots, hashes, recording, and replay.
-- Transport-agnostic rollback networking with prediction, input resend, acking,
-  confirmed-frame hashes, desync detection, and frame-advantage throttling.
+- Transport-agnostic rollback networking for 2-4 players with prediction,
+  input resend, acking, confirmed-frame hashes, desync detection,
+  frame-advantage throttling, and per-packet build-fingerprint gating.
 
 Your game owns game rules, rendering, matchmaking, and byte transport. The
 extension owns physics state, rollback mechanics, and the rollback protocol.
@@ -89,6 +90,7 @@ relay. Pass received bytes unchanged to `session.ingest_packet(packet)`.
 - [Build from source](docs/build-from-source.md)
 - [Determinism contract](docs/determinism-contract.md)
 - [Network rollback](docs/network-rollback.md)
+- [Partial resimulation](docs/partial-resimulation.md)
 - [Transport adapters](docs/transport-adapters.md)
 - [Snapshots and hashing](docs/snapshots-and-hashing.md)
 - [Testing](docs/testing.md)
