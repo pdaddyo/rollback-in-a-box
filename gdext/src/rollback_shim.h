@@ -44,6 +44,12 @@ int b3r_slot_size( const B3RollbackCtx* ctx, int slot );
 // Computed once and cached; the probe world is created and destroyed inside.
 uint64_t b3r_determinism_fingerprint( void );
 
+// Replace box3d's assert handler with one that prints the standard
+// "BOX3D ASSERTION" line and exits the process with code 1 instead of
+// trapping. For tests that intentionally trigger assertions in a child
+// process: a clean exit produces no SIGABRT, so no OS crash report.
+void b3r_install_exit_on_assert( void );
+
 #ifdef __cplusplus
 }
 #endif

@@ -12,6 +12,7 @@
 #include "world_snapshot.h"
 
 #include <float.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -158,6 +159,20 @@ uint64_t b3r_world_hash( b3WorldId worldId )
 		return 0;
 	}
 	return b3HashWorldState( b3GetWorldFromId( worldId ) );
+}
+
+static int b3r_ExitOnAssert( const char* condition, const char* fileName, int lineNumber )
+{
+	// Same message the default handler prints, so callers watching for it
+	// (tests/test_edge_ids_shapes.gd) see identical output.
+	printf( "BOX3D ASSERTION: %s, %s, line %d\n", condition, fileName, lineNumber );
+	fflush( NULL );
+	_Exit( 1 );
+}
+
+void b3r_install_exit_on_assert( void )
+{
+	b3SetAssertFcn( b3r_ExitOnAssert );
 }
 
 int b3r_slot_size( const B3RollbackCtx* ctx, int slot )
