@@ -39,8 +39,8 @@ extension owns physics state, rollback mechanics, and the rollback protocol.
 
 ## API coverage
 
-The pinned Box3D revision currently exposes 700 public functions: 577 exported
-`B3_API` functions and 123 public inline helpers. All 700 are represented by
+The pinned Box3D revision currently exposes 695 public functions: 572 exported
+`B3_API` functions and 123 public inline helpers. All 695 are represented by
 the generated `Box3D` class with their exact C names. The generated
 [API reference](docs/api-reference.md) and [machine-readable manifest](api/box3d-api.json)
 are checked in CI, so an upstream API change cannot silently leave the binding

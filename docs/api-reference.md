@@ -2,7 +2,7 @@
 
 This file is generated from the pinned Box3D public headers. Do not edit it by hand.
 
-Coverage: **700 public functions** (577 exported `B3_API`, 123 public inline) and **108 concrete public structs**.
+Coverage: **695 public functions** (572 exported `B3_API`, 123 public inline) and **108 concrete public structs**.
 
 Use the generated `Box3D` class for exact C function names or call `Box3DRaw.call_box3d()` directly. IDs are Godot integers. Value structs accept Dictionaries or exact packed bytes. Pointer parameters accept `Box3DBuffer`, a native address returned by Box3D, or `null`.
 
@@ -109,7 +109,7 @@ Use the generated `Box3D` class for exact C function names or call `Box3DRaw.cal
 | `b3CollideCapsules` | `void b3CollideCapsules(b3LocalManifold *, int, const b3Capsule *, const b3Capsule *, b3Transform)` | exported |
 | `b3CollideHullAndCapsule` | `void b3CollideHullAndCapsule(b3LocalManifold *, int, const b3HullData *, const b3Capsule *, b3Transform, b3SimplexCache *)` | exported |
 | `b3CollideHullAndSphere` | `void b3CollideHullAndSphere(b3LocalManifold *, int, const b3HullData *, const b3Sphere *, b3Transform, b3SimplexCache *)` | exported |
-| `b3CollideHullAndTriangle` | `void b3CollideHullAndTriangle(b3LocalManifold *, int, const b3HullData *, b3Vec3, b3Vec3, b3Vec3, int, b3SATCache *)` | exported |
+| `b3CollideHullAndTriangle` | `void b3CollideHullAndTriangle(b3LocalManifold *, int, const b3HullData *, b3Vec3, b3Vec3, b3Vec3, int, b3SATCache *, bool)` | exported |
 | `b3CollideHulls` | `void b3CollideHulls(b3LocalManifold *, int, const b3HullData *, const b3HullData *, b3Transform, b3SATCache *)` | exported |
 | `b3CollideSphereAndTriangle` | `void b3CollideSphereAndTriangle(b3LocalManifold *, int, const b3Sphere *, const b3Vec3 *)` | exported |
 | `b3CollideSpheres` | `void b3CollideSpheres(b3LocalManifold *, int, const b3Sphere *, const b3Sphere *, b3Transform)` | exported |
@@ -130,11 +130,11 @@ Use the generated `Box3D` class for exact C function names or call `Box3DRaw.cal
 | `b3ConvertBytesToCompound` | `b3CompoundData * b3ConvertBytesToCompound(uint8_t *, int)` | exported |
 | `b3ConvertCompoundToBytes` | `uint8_t * b3ConvertCompoundToBytes(b3CompoundData *)` | exported |
 | `b3Cos` | `float b3Cos(float)` | inline |
+| `b3CreateBakedCompoundShape` | `b3ShapeId b3CreateBakedCompoundShape(b3BodyId, b3ShapeDef *, const b3CompoundData *)` | exported |
 | `b3CreateBody` | `b3BodyId b3CreateBody(b3WorldId, const b3BodyDef *)` | exported |
 | `b3CreateBoxMesh` | `b3MeshData * b3CreateBoxMesh(b3Vec3, b3Vec3, bool)` | exported |
 | `b3CreateCapsuleShape` | `b3ShapeId b3CreateCapsuleShape(b3BodyId, const b3ShapeDef *, const b3Capsule *)` | exported |
 | `b3CreateCompound` | `b3CompoundData * b3CreateCompound(const b3CompoundDef *)` | exported |
-| `b3CreateCompoundShape` | `b3ShapeId b3CreateCompoundShape(b3BodyId, b3ShapeDef *, const b3CompoundData *)` | exported |
 | `b3CreateCone` | `b3HullData * b3CreateCone(float, float, float, int)` | exported |
 | `b3CreateCylinder` | `b3HullData * b3CreateCylinder(float, float, float, int)` | exported |
 | `b3CreateDistanceJoint` | `b3JointId b3CreateDistanceJoint(b3WorldId, const b3DistanceJointDef *)` | exported |
@@ -245,7 +245,7 @@ Use the generated `Box3D` class for exact C function names or call `Box3DRaw.cal
 | `b3DynamicTree_Validate` | `void b3DynamicTree_Validate(const b3DynamicTree *)` | exported |
 | `b3DynamicTree_ValidateNoEnlarged` | `void b3DynamicTree_ValidateNoEnlarged(const b3DynamicTree *)` | exported |
 | `b3GetAxisAngle` | `b3Vec3 b3GetAxisAngle(float *, b3Quat)` | inline |
-| `b3GetByteCount` | `int32_t b3GetByteCount()` | exported |
+| `b3GetByteCount` | `int b3GetByteCount()` | exported |
 | `b3GetCompoundCapsule` | `b3CompoundCapsule b3GetCompoundCapsule(const b3CompoundData *, int)` | exported |
 | `b3GetCompoundChild` | `b3ChildShape b3GetCompoundChild(const b3CompoundData *, int)` | exported |
 | `b3GetCompoundHull` | `b3CompoundHull b3GetCompoundHull(const b3CompoundData *, int)` | exported |
@@ -443,7 +443,6 @@ Use the generated `Box3D` class for exact C function names or call `Box3DRaw.cal
 | `b3RayCastHull` | `b3CastOutput b3RayCastHull(const b3HullData *, const b3RayCastInput *)` | exported |
 | `b3RayCastMesh` | `b3CastOutput b3RayCastMesh(const b3Mesh *, const b3RayCastInput *)` | exported |
 | `b3RayCastSphere` | `b3CastOutput b3RayCastSphere(const b3Sphere *, const b3RayCastInput *)` | exported |
-| `b3ReadBinaryFile` | `void * b3ReadBinaryFile(const char *, const char *, int *)` | exported |
 | `b3RecPlayer_Create` | `b3RecPlayer * b3RecPlayer_Create(const void *, int, int)` | exported |
 | `b3RecPlayer_Destroy` | `void b3RecPlayer_Destroy(b3RecPlayer *)` | exported |
 | `b3RecPlayer_DrawFrameQueries` | `void b3RecPlayer_DrawFrameQueries(b3RecPlayer *, b3DebugDraw *, int, int)` | exported |
@@ -661,10 +660,7 @@ Use the generated `Box3D` class for exact C function names or call `Box3DRaw.cal
 | `b3World_CastShape` | `b3TreeStats b3World_CastShape(b3WorldId, b3Pos, const b3ShapeProxy *, b3Vec3, b3QueryFilter, b3CastResultFcn *, void *)` | exported |
 | `b3World_CollideMover` | `void b3World_CollideMover(b3WorldId, b3Pos, const b3Capsule *, b3QueryFilter, b3PlaneResultFcn *, void *)` | exported |
 | `b3World_Draw` | `void b3World_Draw(b3WorldId, b3DebugDraw *, uint64_t)` | exported |
-| `b3World_Dump` | `void b3World_Dump(b3WorldId)` | exported |
-| `b3World_DumpAwake` | `void b3World_DumpAwake(b3WorldId)` | exported |
 | `b3World_DumpMemoryStats` | `void b3World_DumpMemoryStats(b3WorldId)` | exported |
-| `b3World_DumpShapeBounds` | `void b3World_DumpShapeBounds(b3WorldId, b3BodyType)` | exported |
 | `b3World_EnableContinuous` | `void b3World_EnableContinuous(b3WorldId, bool)` | exported |
 | `b3World_EnableSleeping` | `void b3World_EnableSleeping(b3WorldId, bool)` | exported |
 | `b3World_EnableSpeculative` | `void b3World_EnableSpeculative(b3WorldId, bool)` | exported |
@@ -708,7 +704,6 @@ Use the generated `Box3D` class for exact C function names or call `Box3DRaw.cal
 | `b3World_StartRecording` | `void b3World_StartRecording(b3WorldId, b3Recording *)` | exported |
 | `b3World_Step` | `void b3World_Step(b3WorldId, float, int)` | exported |
 | `b3World_StopRecording` | `void b3World_StopRecording(b3WorldId)` | exported |
-| `b3WriteBinaryFile` | `void b3WriteBinaryFile(void *, int, const char *)` | exported |
 | `b3Yield` | `void b3Yield()` | exported |
 
 ## Structs
@@ -747,7 +742,7 @@ Use the generated `Box3D` class for exact C function names or call `Box3DRaw.cal
 | `b3ContactId` | `index1: int32_t`, `world0: uint16_t`, `padding: int16_t`, `generation: uint32_t` |
 | `b3CosSin` | `cosine: float`, `sine: float` |
 | `b3Counters` | `bodyCount: int`, `shapeCount: int`, `contactCount: int`, `jointCount: int`, `islandCount: int`, `stackUsed: int`, `arenaCapacity: int`, `staticTreeHeight: int`, `treeHeight: int`, `satCallCount: int`, `satCacheHitCount: int`, `byteCount: int`, `taskCount: int`, `colorCounts: int[24]`, `manifoldCounts: int[8]`, `awakeContactCount: int`, `recycledContactCount: int`, `distanceIterations: int`, `pushBackIterations: int`, `rootIterations: int` |
-| `b3DebugDraw` | `DrawShapeFcn: bool (*)(void *, b3WorldTransform, b3HexColor, void *)`, `DrawSegmentFcn: void (*)(b3Pos, b3Pos, b3HexColor, void *)`, `DrawTransformFcn: void (*)(b3WorldTransform, void *)`, `DrawPointFcn: void (*)(b3Pos, float, b3HexColor, void *)`, `DrawSphereFcn: void (*)(b3Pos, float, b3HexColor, float, void *)`, `DrawCapsuleFcn: void (*)(b3Pos, b3Pos, float, b3HexColor, float, void *)`, `DrawBoundsFcn: void (*)(b3AABB, b3HexColor, void *)`, `DrawBoxFcn: void (*)(b3Vec3, b3WorldTransform, b3HexColor, void *)`, `DrawStringFcn: void (*)(b3Pos, const char *, b3HexColor, void *)`, `drawingBounds: b3AABB`, `forceScale: float`, `jointScale: float`, `drawShapes: bool`, `drawJoints: bool`, `drawJointExtras: bool`, `drawBounds: bool`, `drawMass: bool`, `drawSleep: bool`, `drawBodyNames: bool`, `drawContacts: bool`, `drawAnchorA: int`, `drawGraphColors: bool`, `drawContactFeatures: bool`, `drawContactNormals: bool`, `drawContactForces: bool`, `drawFrictionForces: bool`, `drawIslands: bool`, `context: void *` |
+| `b3DebugDraw` | `DrawShapeFcn: bool (*)(void *, b3WorldTransform, b3HexColor, void *)`, `DrawSegmentFcn: void (*)(b3Pos, b3Pos, b3HexColor, void *)`, `DrawTransformFcn: void (*)(b3WorldTransform, void *)`, `DrawPointFcn: void (*)(b3Pos, float, b3HexColor, void *)`, `DrawSphereFcn: void (*)(b3Pos, float, b3HexColor, float, void *)`, `DrawCapsuleFcn: void (*)(b3Pos, b3Pos, float, b3HexColor, float, void *)`, `DrawBoundsFcn: void (*)(b3AABB, b3HexColor, void *)`, `DrawBoxFcn: void (*)(b3Vec3, b3WorldTransform, b3HexColor, void *)`, `DrawStringFcn: void (*)(b3Pos, const char *, b3HexColor, void *)`, `drawingBounds: b3AABB`, `forceScale: float`, `jointScale: float`, `drawShapes: bool`, `drawJoints: bool`, `drawJointExtras: bool`, `drawBounds: bool`, `drawMass: bool`, `drawSleep: bool`, `drawBodyNames: bool`, `drawContacts: bool`, `drawAnchorA: int`, `drawGraphColors: bool`, `drawContactFeatures: bool`, `drawContactNormals: bool`, `drawContactForces: bool`, `drawIslands: bool`, `context: void *` |
 | `b3DebugShape` | Exact packed bytes only (contains anonymous union fields). |
 | `b3DistanceInput` | `proxyA: b3ShapeProxy`, `proxyB: b3ShapeProxy`, `transform: b3Transform`, `useRadii: bool` |
 | `b3DistanceJointDef` | `base: b3JointDef`, `length: float`, `enableSpring: bool`, `lowerSpringForce: float`, `upperSpringForce: float`, `hertz: float`, `dampingRatio: float`, `enableLimit: bool`, `minLength: float`, `maxLength: float`, `enableMotor: bool`, `maxMotorForce: float`, `motorSpeed: float` |
@@ -800,7 +795,7 @@ Use the generated `Box3D` class for exact C function names or call `Box3DRaw.cal
 | `b3SensorEvents` | `beginEvents: b3SensorBeginTouchEvent *`, `endEvents: b3SensorEndTouchEvent *`, `beginCount: int`, `endCount: int` |
 | `b3ShapeCastInput` | `proxy: b3ShapeProxy`, `translation: b3Vec3`, `maxFraction: float`, `canEncroach: bool` |
 | `b3ShapeCastPairInput` | `proxyA: b3ShapeProxy`, `proxyB: b3ShapeProxy`, `transform: b3Transform`, `translationB: b3Vec3`, `maxFraction: float`, `canEncroach: bool` |
-| `b3ShapeDef` | `name: const char *`, `userData: void *`, `materials: b3SurfaceMaterial *`, `materialCount: int`, `baseMaterial: b3SurfaceMaterial`, `density: float`, `explosionScale: float`, `filter: b3Filter`, `enableCustomFiltering: bool`, `isSensor: bool`, `enableSensorEvents: bool`, `enableContactEvents: bool`, `enableHitEvents: bool`, `enablePreSolveEvents: bool`, `invokeContactCreation: bool`, `updateBodyMass: bool`, `internalValue: int` |
+| `b3ShapeDef` | `name: const char *`, `userData: void *`, `materials: b3SurfaceMaterial *`, `materialCount: int`, `baseMaterial: b3SurfaceMaterial`, `density: float`, `explosionScale: float`, `filter: b3Filter`, `enableCustomFiltering: bool`, `isSensor: bool`, `enableSensorEvents: bool`, `enableContactEvents: bool`, `enableHitEvents: bool`, `enablePreSolveEvents: bool`, `invokeContactCreation: bool`, `updateBodyMass: bool`, `enableSpeculativeContact: bool`, `internalValue: int` |
 | `b3ShapeId` | `index1: int32_t`, `world0: uint16_t`, `generation: uint16_t` |
 | `b3ShapeProxy` | `points: const b3Vec3 *`, `count: int`, `radius: float` |
 | `b3Simplex` | `vertices: b3SimplexVertex[4]`, `count: int` |

@@ -1,5 +1,5 @@
 {
-  "box3d_commit": "540ea387b0c02bf714fbfdcc8fb88c039c35fe6f",
+  "box3d_commit": "d421e45c828f6f853a145f726f0b9425d31146eb",
   "constants": [
     "b3_allConcaveEdges",
     "b3_allFlatEdges",
@@ -217,8 +217,8 @@
     "b3_weldJoint",
     "b3_wheelJoint"
   ],
-  "exported_function_count": 577,
-  "function_count": 700,
+  "exported_function_count": 572,
+  "function_count": 695,
   "functions": [
     {
       "description": "Get the surface area of an axis-aligned bounding box.",
@@ -1141,7 +1141,7 @@
       "signature": "b3MotionLocks b3Body_GetMotionLocks(b3BodyId)"
     },
     {
-      "description": "Get the body name.",
+      "description": "Get the body name. Returns an empty string if the name isn't set.",
       "header": "box3d.h",
       "kind": "exported",
       "name": "b3Body_GetName",
@@ -1647,7 +1647,7 @@
       "signature": "void b3Body_SetMotionLocks(b3BodyId, b3MotionLocks)"
     },
     {
-      "description": "Set the body name. Up to B3_BODY_NAME_LENGTH characters excluding null termination.",
+      "description": "Set the body name.",
       "header": "box3d.h",
       "kind": "exported",
       "name": "b3Body_SetName",
@@ -2103,10 +2103,14 @@
         {
           "name": "cache",
           "type": "b3SATCache *"
+        },
+        {
+          "name": "enableSpeculative",
+          "type": "bool"
         }
       ],
       "return_type": "void",
-      "signature": "void b3CollideHullAndTriangle(b3LocalManifold *, int, const b3HullData *, b3Vec3, b3Vec3, b3Vec3, int, b3SATCache *)"
+      "signature": "void b3CollideHullAndTriangle(b3LocalManifold *, int, const b3HullData *, b3Vec3, b3Vec3, b3Vec3, int, b3SATCache *, bool)"
     },
     {
       "description": "Collide two hulls.",
@@ -2485,6 +2489,28 @@
       "signature": "float b3Cos(float)"
     },
     {
+      "description": "Baked compound shapes are only allowed on static bodies. Note: runtime compounds are achieved by adding multiple shapes to a body. Runtime compounds can be dynamic and/or kinematic.",
+      "header": "box3d.h",
+      "kind": "exported",
+      "name": "b3CreateBakedCompoundShape",
+      "parameters": [
+        {
+          "name": "bodyId",
+          "type": "b3BodyId"
+        },
+        {
+          "name": "def",
+          "type": "b3ShapeDef *"
+        },
+        {
+          "name": "compound",
+          "type": "const b3CompoundData *"
+        }
+      ],
+      "return_type": "b3ShapeId",
+      "signature": "b3ShapeId b3CreateBakedCompoundShape(b3BodyId, b3ShapeDef *, const b3CompoundData *)"
+    },
+    {
       "description": "Create a rigid body given a definition. No reference to the definition is retained. So you can create the definition on the stack and pass it as a pointer. This function is locked during callbacks.",
       "header": "box3d.h",
       "kind": "exported",
@@ -2559,28 +2585,6 @@
       ],
       "return_type": "b3CompoundData *",
       "signature": "b3CompoundData * b3CreateCompound(const b3CompoundDef *)"
-    },
-    {
-      "description": "Compound shapes are only allowed on static bodies.",
-      "header": "box3d.h",
-      "kind": "exported",
-      "name": "b3CreateCompoundShape",
-      "parameters": [
-        {
-          "name": "bodyId",
-          "type": "b3BodyId"
-        },
-        {
-          "name": "def",
-          "type": "b3ShapeDef *"
-        },
-        {
-          "name": "compound",
-          "type": "const b3CompoundData *"
-        }
-      ],
-      "return_type": "b3ShapeId",
-      "signature": "b3ShapeId b3CreateCompoundShape(b3BodyId, b3ShapeDef *, const b3CompoundData *)"
     },
     {
       "description": "Create a tessellated cone as a hull.",
@@ -4507,8 +4511,8 @@
       "kind": "exported",
       "name": "b3GetByteCount",
       "parameters": [],
-      "return_type": "int32_t",
-      "signature": "int32_t b3GetByteCount()"
+      "return_type": "int",
+      "signature": "int b3GetByteCount()"
     },
     {
       "description": "Access a child capsule by index.",
@@ -7726,28 +7730,6 @@
       "signature": "b3CastOutput b3RayCastSphere(const b3Sphere *, const b3RayCastInput *)"
     },
     {
-      "description": "",
-      "header": "base.h",
-      "kind": "exported",
-      "name": "b3ReadBinaryFile",
-      "parameters": [
-        {
-          "name": "prefix",
-          "type": "const char *"
-        },
-        {
-          "name": "fileName",
-          "type": "const char *"
-        },
-        {
-          "name": "memSize",
-          "type": "int *"
-        }
-      ],
-      "return_type": "void *",
-      "signature": "void * b3ReadBinaryFile(const char *, const char *, int *)"
-    },
-    {
       "description": "Create a player over a recording. Owns a private copy of the bytes. pointer to recording bytes byte count of the recording worker count for the replay world; pass 1 to match a serial recording. Replaying at a different count re-partitions the constraint graph, so the StateHash check becomes a cross-thread determinism test. Adjustable later with b3RecPlayer_SetWorkerCount. a new player, or NULL on bad header or deserialization failure",
       "header": "box3d.h",
       "kind": "exported",
@@ -9292,7 +9274,7 @@
       "signature": "b3SurfaceMaterial b3Shape_GetMeshSurfaceMaterial(b3ShapeId, int)"
     },
     {
-      "description": "Get the shape name.",
+      "description": "Get the shape name. Returns an empty string if the name isn't set.",
       "header": "box3d.h",
       "kind": "exported",
       "name": "b3Shape_GetName",
@@ -9618,7 +9600,7 @@
       "signature": "void b3Shape_SetMeshMaterial(b3ShapeId, b3SurfaceMaterial, int)"
     },
     {
-      "description": "Set the shape name. Up to B3_SHAPE_NAME_LENGTH characters excluding null termination.",
+      "description": "Set the shape name.",
       "header": "box3d.h",
       "kind": "exported",
       "name": "b3Shape_SetName",
@@ -11386,34 +11368,6 @@
       "signature": "void b3World_Draw(b3WorldId, b3DebugDraw *, uint64_t)"
     },
     {
-      "description": "Dump world to a text file. Meshes are saved to binary b3m files.",
-      "header": "box3d.h",
-      "kind": "exported",
-      "name": "b3World_Dump",
-      "parameters": [
-        {
-          "name": "worldId",
-          "type": "b3WorldId"
-        }
-      ],
-      "return_type": "void",
-      "signature": "void b3World_Dump(b3WorldId)"
-    },
-    {
-      "description": "Dump world to a text file. Saves only awake bodies and associated static bodies. Meshes are saved to binary b3m files.",
-      "header": "box3d.h",
-      "kind": "exported",
-      "name": "b3World_DumpAwake",
-      "parameters": [
-        {
-          "name": "worldId",
-          "type": "b3WorldId"
-        }
-      ],
-      "return_type": "void",
-      "signature": "void b3World_DumpAwake(b3WorldId)"
-    },
-    {
       "description": "Dump memory stats to log.",
       "header": "box3d.h",
       "kind": "exported",
@@ -11426,24 +11380,6 @@
       ],
       "return_type": "void",
       "signature": "void b3World_DumpMemoryStats(b3WorldId)"
-    },
-    {
-      "description": "Dump shape bounds to box3d_bounds.txt",
-      "header": "box3d.h",
-      "kind": "exported",
-      "name": "b3World_DumpShapeBounds",
-      "parameters": [
-        {
-          "name": "worldId",
-          "type": "b3WorldId"
-        },
-        {
-          "name": "type",
-          "type": "b3BodyType"
-        }
-      ],
-      "return_type": "void",
-      "signature": "void b3World_DumpShapeBounds(b3WorldId, b3BodyType)"
     },
     {
       "description": "Enable/disable continuous collision between dynamic and static bodies. Generally you should keep continuous collision enabled to prevent fast moving objects from going through static objects. The performance gain from disabling continuous collision is minor. b3WorldDef",
@@ -12178,28 +12114,6 @@
       ],
       "return_type": "void",
       "signature": "void b3World_StopRecording(b3WorldId)"
-    },
-    {
-      "description": "",
-      "header": "base.h",
-      "kind": "exported",
-      "name": "b3WriteBinaryFile",
-      "parameters": [
-        {
-          "name": "data",
-          "type": "void *"
-        },
-        {
-          "name": "size",
-          "type": "int"
-        },
-        {
-          "name": "fileName",
-          "type": "const char *"
-        }
-      ],
-      "return_type": "void",
-      "signature": "void b3WriteBinaryFile(void *, int, const char *)"
     },
     {
       "description": "Yield to be used in a busy loop.",
@@ -13224,10 +13138,6 @@
         },
         {
           "name": "drawContactForces",
-          "type": "bool"
-        },
-        {
-          "name": "drawFrictionForces",
           "type": "bool"
         },
         {
@@ -14943,6 +14853,10 @@
         },
         {
           "name": "updateBodyMass",
+          "type": "bool"
+        },
+        {
+          "name": "enableSpeculativeContact",
           "type": "bool"
         },
         {

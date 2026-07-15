@@ -85,7 +85,7 @@ func create_all_shapes() -> void:
 	var compound_data: int = api.b3CreateCompound(compound_definition)
 	resources.append(compound_data)
 	var compound_body := create_body(constants["b3_staticBody"], Vector3(7, 1, 0))
-	var compound: int = api.b3CreateCompoundShape(compound_body, shape_definition(0.0), compound_data)
+	var compound: int = api.b3CreateBakedCompoundShape(compound_body, shape_definition(0.0), compound_data)
 	expect_shape(compound, "b3_compoundShape")
 
 func create_joint(default_function: StringName, definition_type: StringName, create_function: StringName,
@@ -146,9 +146,9 @@ func create_all_joints() -> void:
 func _initialize() -> void:
 	raw = api.raw
 	constants = raw.get_constants()
-	if raw.get_api_function_count() < 700:
+	if raw.get_api_function_count() < 695:
 		return fail("public API catalog is incomplete")
-	for required in ["b3CreateSphereShape", "b3CreateCompoundShape", "b3CreateWheelJoint", "b3ShapeDistance", "b3World_GetContactEvents"]:
+	for required in ["b3CreateSphereShape", "b3CreateBakedCompoundShape", "b3CreateWheelJoint", "b3ShapeDistance", "b3World_GetContactEvents"]:
 		if not raw.get_functions().has(required):
 			return fail("missing API function %s" % required)
 
