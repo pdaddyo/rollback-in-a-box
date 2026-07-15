@@ -1,0 +1,82 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: macos
+          - os: windows-latest
+            platform: windows
+          - os: ubuntu-latest
+            platform: linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ninja (macOS)
+        if: matrix.platform == 'macos'
+        run: brew install ninja
+
+      - name: Install ninja (Linux)
+        if: matrix.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Install ninja (Windows)
+        if: matrix.platform == 'windows'
+        run: choco install ninja -y
+
+      - name: MSVC dev environment
+        if: matrix.platform == 'windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Fetch pinned dependencies
+        shell: bash
+        run: ./gdext/setup_deps.sh
+
+      - name: Verify generated Box3D API coverage
+        if: matrix.platform != 'windows'
+        shell: bash
+        run: python3 tools/generate_bindings.py --check
+
+      - name: Build template_debug
+        shell: bash
+        run: |
+          cmake -S gdext -B gdext/build-debug -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug -DGODOTCPP_TARGET=template_debug
+          cmake --build gdext/build-debug
+
+      - name: Build template_release
+        shell: bash
+        run: |
+          cmake -S gdext -B gdext/build-release -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DGODOTCPP_TARGET=template_release
+          cmake --build gdext/build-release
+
+      - name: Run headless test suite (macOS)
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          curl -sSLo godot.zip https://github.com/godotengine/godot/releases/download/4.7-stable/Godot_v4.7-stable_macos.universal.zip
+          unzip -q godot.zip
+          export GODOT="$PWD/Godot.app/Contents/MacOS/Godot"
+          xattr -dr com.apple.quarantine Godot.app || true
+          ./tests/run_all.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rollback-in-a-box-${{ matrix.platform }}
+          path: addons/box3d_rollback/bin/*

@@ -1,0 +1,14 @@
+[configuration]
+
+entry_symbol = "box3d_rollback_init"
+compatibility_minimum = "4.5"
+reloadable = true
+
+[libraries]
+
+macos.debug = "res://addons/box3d_rollback/bin/libbox3d_rollback.macos.template_debug.arm64.dylib"
+macos.release = "res://addons/box3d_rollback/bin/libbox3d_rollback.macos.template_release.arm64.dylib"
+windows.debug.x86_64 = "res://addons/box3d_rollback/bin/libbox3d_rollback.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "res://addons/box3d_rollback/bin/libbox3d_rollback.windows.template_release.x86_64.dll"
+linux.debug.x86_64 = "res://addons/box3d_rollback/bin/libbox3d_rollback.linux.template_debug.x86_64.so"
+linux.release.x86_64 = "res://addons/box3d_rollback/bin/libbox3d_rollback.linux.template_release.x86_64.so"

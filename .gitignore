@@ -1,0 +1,9 @@
+.godot/
+__pycache__/
+*.py[cod]
+gdext/build*/
+gdext/extern/
+addons/box3d_rollback/bin/
+*.tmp
+*.log
+.DS_Store

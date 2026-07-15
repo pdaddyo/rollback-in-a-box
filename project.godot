@@ -1,0 +1,10 @@
+; Engine configuration file.
+; Keep this project minimal: it exists to run addon tests and examples.
+
+config_version=5
+
+[application]
+
+config/name="rollback-in-a-box"
+config/features=PackedStringArray("4.5")
+config/icon="res://icon.svg"
