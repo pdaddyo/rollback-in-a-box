@@ -32,6 +32,24 @@ errors as failures. The suite covers:
 - `test_replay.gd`: recording, file validation, replay load, forward/backward
   seek, shape enumeration, transform streaming, and divergence checks.
 
+Edge-case suites exercise guard paths, degenerate inputs, and boundary
+conditions:
+
+- `test_edge_raw_marshaling.gd`: generated bridge marshaling — bad struct
+  names, wrong field types, array-length validation, unknown enum values, and
+  world queries with null callbacks.
+- `test_edge_ids_shapes.gd`: id lifecycle — stale ids after destroy, double
+  destroy, wrong-family mutations, and validity checks across reinit.
+- `test_edge_world_snapshots.gd`: snapshot slot bounds, zero/negative slot
+  counts, restore before step, restore across reinit, and cross-world restore.
+- `test_edge_world_hashing.gd`: hash stability across restore, hash advance on
+  quiescent worlds, empty-world hashing, and extreme time steps.
+- `test_edge_session.gd`: session netcode — duplicate and out-of-order input
+  delivery, frame-boundary conditions, stall behavior, and configure guard
+  rails after start.
+- `test_edge_replay.gd`: empty recordings, out-of-range seeks, corrupt and
+  truncated files, and use-before-load.
+
 Also run the generated coverage check:
 
 ```sh
