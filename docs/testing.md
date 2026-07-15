@@ -16,9 +16,19 @@ errors as failures. The suite covers:
   and a world query.
 - `test_determinism.gd`: independent worlds produce identical hashes, then one
   restores an older snapshot and reproduces the recorded hash sequence.
+- `test_compat.gd`: determinism fingerprint stability, little-endian wire
+  layout, packet version, rejection of mismatched fingerprints with the
+  `peer_incompatible` signal, and acceptance of same-build packets.
 - `test_session_loopback.gd`: two network sessions converge with clean delivery
   and with deterministic latency, jitter, 12 percent loss, prediction, and
   uneven confirmation.
+- `test_session_multiplayer.gd`: 3- and 4-player broadcast sessions converge
+  under clean, jittery, lossy, and asymmetric network conditions, with pacing
+  keeping the frame spread bounded.
+- `test_partial_resim.gd`: affected-set closure over contacts, joints, and
+  swept AABBs (static bodies do not propagate), per-player scoping, cross-peer
+  determinism of the closure, rollback scope telemetry, and bitwise hash
+  convergence through rollbacks in a mostly-sleeping 81-body world.
 - `test_replay.gd`: recording, file validation, replay load, forward/backward
   seek, shape enumeration, transform streaming, and divergence checks.
 

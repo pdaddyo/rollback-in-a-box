@@ -9,8 +9,9 @@ extends SceneTree
 # run_all.sh failure patterns (SCRIPT ERROR:|Parse Error:|FAIL:).
 
 const MAGIC := 0x42523344
-const VERSION := 1
+const VERSION := 2
 const NO_FRAME := 0xFFFFFFFF
+const HEADER_SIZE := 48
 
 var failed := false
 
@@ -135,8 +136,10 @@ func make_session(sim: Node, player: int, players: int, delay := 2, pred := 8) -
 	s.start()
 	return s
 
-# Hand-build a wire packet. ack and hash frame are NO_FRAME so ingesting
-# only touches the input frames (plus advantage/remote-frame bookkeeping).
+# Hand-build a v2 wire packet (48-byte header, build fingerprint at offset
+# 40 so it passes the compatibility gate). ack and hash frame are NO_FRAME so
+# ingesting only touches the input frames (plus advantage/remote-frame
+# bookkeeping).
 func build_packet(sender: int, their_frame: int, start_f: int, values: Array) -> PackedByteArray:
 	var spb := StreamPeerBuffer.new()
 	spb.put_u32(MAGIC)
@@ -152,6 +155,7 @@ func build_packet(sender: int, their_frame: int, start_f: int, values: Array) ->
 	spb.put_u32(start_f)
 	spb.put_u16(values.size())
 	spb.put_u16(0)
+	spb.put_u64(Box3DRollbackSession.get_build_fingerprint())
 	for v in values:
 		spb.put_64(v)
 	return spb.data_array
@@ -186,6 +190,8 @@ func test_configure_guard_rails() -> void:
 	# Every one of these must ERR_FAIL and leave the valid config intact.
 	s.configure(0, 5, 2, 8) # num_players > MAX_PLAYERS
 	s.configure(2, 2, 2, 8) # local_player >= num_players
+	s.configure(3, 3, 2, 8) # local_player >= num_players (N-player, num_players > 2)
+	s.configure(-1, 2, 2, 8) # local_player < 0
 	s.configure(0, 0, 2, 8) # num_players < 1
 	s.configure(0, 2, 17, 8) # input_delay > 16
 	s.configure(0, 2, 2, 0) # max_prediction < 1
@@ -211,7 +217,7 @@ func test_configure_guard_rails() -> void:
 	if s.get_total_stalled_ticks() != 12:
 		return fail("configure guards: stalled ticks %d != 12" % s.get_total_stalled_ticks())
 	var pkt := s.get_packet()
-	if pkt.size() < 40:
+	if pkt.size() < HEADER_SIZE:
 		return fail("configure guards: packet too short (%d bytes)" % pkt.size())
 	if pkt.decode_u8(5) != 0:
 		return fail("configure guards: packet sender %d != 0 (local_player changed)" % pkt.decode_u8(5))
@@ -444,7 +450,7 @@ func test_malformed_packets_ignored() -> void:
 	var bads: Array = []
 	bads.append(PackedByteArray()) # empty
 	var short_pkt := PackedByteArray()
-	short_pkt.resize(39) # one byte short of the header
+	short_pkt.resize(HEADER_SIZE - 1) # one byte short of the v2 header
 	bads.append(short_pkt)
 	var wrong_magic := build_packet(1, 3, 0, [1, 1])
 	wrong_magic[0] = 0x00

@@ -5,7 +5,9 @@ the same state hashes.
 
 Required:
 
-- Same addon build on all peers.
+- Same determinism fingerprint on all peers
+  (`Box3DRollbackSession.get_build_fingerprint()`; enforced per packet, see
+  [Network rollback](network-rollback.md)).
 - Same Box3D commit on all peers.
 - Same world construction order.
 - Same fixed timestep and substep count.
