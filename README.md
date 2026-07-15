@@ -1,5 +1,9 @@
 # rollback-in-a-box
 
+<p align="center">
+  <img src="docs/logo.png" alt="rollback-in-a-box (3d) — Box3D rollback physics system" width="520">
+</p>
+
 Deterministic network rollback physics for Godot, powered by [Box3D](https://github.com/erincatto/box3d) by Erin Catto.
 
 `rollback-in-a-box` is a Godot 4 GDExtension with three deliberately separate
@@ -8,11 +12,30 @@ layers:
 - The complete public Box3D C API, generated into a Godot-facing `Box3D` class.
 - Deterministic full-world snapshots, hashes, recording, and replay.
 - Transport-agnostic rollback networking for 2-4 players with prediction,
-  input resend, acking, confirmed-frame hashes, desync detection,
-  frame-advantage throttling, and per-packet build-fingerprint gating.
+  input resend, acking, confirmed-frame hashes, desync detection, and
+  frame-advantage throttling.
 
 Your game owns game rules, rendering, matchmaking, and byte transport. The
 extension owns physics state, rollback mechanics, and the rollback protocol.
+
+## Highlights
+
+- **2-4 player sessions.** Packets are broadcast; acknowledgement, pacing, and
+  confirmed hashes are tracked per peer. 3- and 4-player sessions are tested
+  under latency, jitter, and loss.
+- **Build-fingerprint gating.** Every packet carries a determinism fingerprint
+  (Box3D version, SIMD flavor and width, float evaluation mode, snapshot
+  layouts, and a hashed simulation probe). Mismatched builds are rejected at
+  the packet layer, making cross-platform play an enforced gate instead of a
+  convention. Compare `Box3DRollbackSession.get_build_fingerprint()` during
+  matchmaking.
+- **Rollback scoping.** Games declare which bodies each player's input drives;
+  each rollback computes the affected set (closure over contacts, joints, and
+  swept AABBs) and reports scope telemetry. Resimulation stays full-world for
+  correctness; sleeping islands already cost nothing to resimulate — see
+  [Partial resimulation](docs/partial-resimulation.md).
+- **Desync detection.** Confirmed-frame hashes are exchanged continuously and
+  compared bit-for-bit; a divergence emits `desync_detected(frame)`.
 
 ## API coverage
 
@@ -80,7 +103,9 @@ session.start()
 ```
 
 Send `session.get_packet()` through UDP, ENet, WebRTC, Steam networking, or a
-relay. Pass received bytes unchanged to `session.ingest_packet(packet)`.
+relay. Pass received bytes unchanged to `session.ingest_packet(packet)`. For
+3- or 4-player sessions, send every packet to every other peer and pass their
+player count to `configure()`.
 
 ## Documentation
 
