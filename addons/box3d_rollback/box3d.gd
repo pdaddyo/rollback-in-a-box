@@ -304,8 +304,8 @@ func b3CollideHullAndCapsule(arg0, arg1, arg2, arg3, arg4, arg5):
 func b3CollideHullAndSphere(arg0, arg1, arg2, arg3, arg4, arg5):
 	return raw.call_box3d(&"b3CollideHullAndSphere", [arg0, arg1, arg2, arg3, arg4, arg5])
 
-func b3CollideHullAndTriangle(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7):
-	return raw.call_box3d(&"b3CollideHullAndTriangle", [arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7])
+func b3CollideHullAndTriangle(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8):
+	return raw.call_box3d(&"b3CollideHullAndTriangle", [arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8])
 
 func b3CollideHulls(arg0, arg1, arg2, arg3, arg4, arg5):
 	return raw.call_box3d(&"b3CollideHulls", [arg0, arg1, arg2, arg3, arg4, arg5])
@@ -367,6 +367,9 @@ func b3ConvertCompoundToBytes(arg0):
 func b3Cos(arg0):
 	return raw.call_box3d(&"b3Cos", [arg0])
 
+func b3CreateBakedCompoundShape(arg0, arg1, arg2):
+	return raw.call_box3d(&"b3CreateBakedCompoundShape", [arg0, arg1, arg2])
+
 func b3CreateBody(arg0, arg1):
 	return raw.call_box3d(&"b3CreateBody", [arg0, arg1])
 
@@ -378,9 +381,6 @@ func b3CreateCapsuleShape(arg0, arg1, arg2):
 
 func b3CreateCompound(arg0):
 	return raw.call_box3d(&"b3CreateCompound", [arg0])
-
-func b3CreateCompoundShape(arg0, arg1, arg2):
-	return raw.call_box3d(&"b3CreateCompoundShape", [arg0, arg1, arg2])
 
 func b3CreateCone(arg0, arg1, arg2, arg3):
 	return raw.call_box3d(&"b3CreateCone", [arg0, arg1, arg2, arg3])
@@ -1306,9 +1306,6 @@ func b3RayCastMesh(arg0, arg1):
 func b3RayCastSphere(arg0, arg1):
 	return raw.call_box3d(&"b3RayCastSphere", [arg0, arg1])
 
-func b3ReadBinaryFile(arg0, arg1, arg2):
-	return raw.call_box3d(&"b3ReadBinaryFile", [arg0, arg1, arg2])
-
 func b3RecPlayer_Create(arg0, arg1, arg2):
 	return raw.call_box3d(&"b3RecPlayer_Create", [arg0, arg1, arg2])
 
@@ -1960,17 +1957,8 @@ func b3World_CollideMover(arg0, arg1, arg2, arg3, arg4, arg5):
 func b3World_Draw(arg0, arg1, arg2):
 	return raw.call_box3d(&"b3World_Draw", [arg0, arg1, arg2])
 
-func b3World_Dump(arg0):
-	return raw.call_box3d(&"b3World_Dump", [arg0])
-
-func b3World_DumpAwake(arg0):
-	return raw.call_box3d(&"b3World_DumpAwake", [arg0])
-
 func b3World_DumpMemoryStats(arg0):
 	return raw.call_box3d(&"b3World_DumpMemoryStats", [arg0])
-
-func b3World_DumpShapeBounds(arg0, arg1):
-	return raw.call_box3d(&"b3World_DumpShapeBounds", [arg0, arg1])
 
 func b3World_EnableContinuous(arg0, arg1):
 	return raw.call_box3d(&"b3World_EnableContinuous", [arg0, arg1])
@@ -2100,9 +2088,6 @@ func b3World_Step(arg0, arg1, arg2):
 
 func b3World_StopRecording(arg0):
 	return raw.call_box3d(&"b3World_StopRecording", [arg0])
-
-func b3WriteBinaryFile(arg0, arg1, arg2):
-	return raw.call_box3d(&"b3WriteBinaryFile", [arg0, arg1, arg2])
 
 func b3Yield():
 	return raw.call_box3d(&"b3Yield", [])

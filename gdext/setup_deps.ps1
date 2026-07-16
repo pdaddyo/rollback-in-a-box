@@ -3,7 +3,7 @@
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-$BOX3D_SHA = "540ea387b0c02bf714fbfdcc8fb88c039c35fe6f"
+$BOX3D_SHA = "d421e45c828f6f853a145f726f0b9425d31146eb"
 $GODOT_CPP_TAG = "godot-4.5-stable"
 
 if (-not (Test-Path "extern/box3d")) {

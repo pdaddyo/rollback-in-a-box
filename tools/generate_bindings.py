@@ -26,6 +26,13 @@ GENERATED = ROOT / "gdext" / "src" / "generated"
 
 MANUAL_VALUE_TYPES = {"b3Vec3", "b3Quat", "b3Transform"}
 
+# Declared in the public headers but with no definition in the pinned revision.
+# Binding these would fail at link time.
+MISSING_UPSTREAM_DEFINITIONS = {
+    # Left behind when the dump-file code was removed upstream (erincatto/box3d#53).
+    "b3World_DumpShapeBounds",
+}
+
 
 def walk(node: object):
     if not isinstance(node, dict):
@@ -101,7 +108,12 @@ def collect_model(ast: dict, release_function_names: set[str]) -> tuple[list[dic
     for node in walk(ast):
         kind = node.get("kind")
         name = node.get("name", "")
-        if kind == "FunctionDecl" and name.startswith("b3") and name in release_function_names:
+        if (
+            kind == "FunctionDecl"
+            and name.startswith("b3")
+            and name in release_function_names
+            and name not in MISSING_UPSTREAM_DEFINITIONS
+        ):
             function_nodes.setdefault(name, node)
         elif kind == "RecordDecl" and node.get("completeDefinition") and name.startswith("b3"):
             records.setdefault(name, node)

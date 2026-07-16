@@ -1346,9 +1346,6 @@ template <> struct StructCodec<b3DebugDraw> {
 		if (p_fields.has("drawContactForces")) {
 			value.drawContactForces = from_variant<bool>(p_fields["drawContactForces"]);
 		}
-		if (p_fields.has("drawFrictionForces")) {
-			value.drawFrictionForces = from_variant<bool>(p_fields["drawFrictionForces"]);
-		}
 		if (p_fields.has("drawIslands")) {
 			value.drawIslands = from_variant<bool>(p_fields["drawIslands"]);
 		}
@@ -1384,7 +1381,6 @@ template <> struct StructCodec<b3DebugDraw> {
 		fields["drawContactFeatures"] = to_variant(value.drawContactFeatures);
 		fields["drawContactNormals"] = to_variant(value.drawContactNormals);
 		fields["drawContactForces"] = to_variant(value.drawContactForces);
-		fields["drawFrictionForces"] = to_variant(value.drawFrictionForces);
 		fields["drawIslands"] = to_variant(value.drawIslands);
 		fields["context"] = (int64_t)(uintptr_t)value.context;
 		return fields;
@@ -3539,6 +3535,9 @@ template <> struct StructCodec<b3ShapeDef> {
 		if (p_fields.has("updateBodyMass")) {
 			value.updateBodyMass = from_variant<bool>(p_fields["updateBodyMass"]);
 		}
+		if (p_fields.has("enableSpeculativeContact")) {
+			value.enableSpeculativeContact = from_variant<bool>(p_fields["enableSpeculativeContact"]);
+		}
 		if (p_fields.has("internalValue")) {
 			value.internalValue = from_variant<int>(p_fields["internalValue"]);
 		}
@@ -3562,6 +3561,7 @@ template <> struct StructCodec<b3ShapeDef> {
 		fields["enablePreSolveEvents"] = to_variant(value.enablePreSolveEvents);
 		fields["invokeContactCreation"] = to_variant(value.invokeContactCreation);
 		fields["updateBodyMass"] = to_variant(value.updateBodyMass);
+		fields["enableSpeculativeContact"] = to_variant(value.enableSpeculativeContact);
 		fields["internalValue"] = to_variant(value.internalValue);
 		return fields;
 	}

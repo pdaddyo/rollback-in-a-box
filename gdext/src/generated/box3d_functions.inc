@@ -710,7 +710,7 @@ if (function == StringName("b3CollideHullAndSphere")) {
 	return Variant();
 }
 if (function == StringName("b3CollideHullAndTriangle")) {
-	ERR_FAIL_COND_V_MSG(arguments.size() != 8, Variant(), "b3CollideHullAndTriangle expects 8 arguments.");
+	ERR_FAIL_COND_V_MSG(arguments.size() != 9, Variant(), "b3CollideHullAndTriangle expects 9 arguments.");
 	auto arg_0 = pointer_from_variant<b3LocalManifold *>(arguments[0]);
 	auto arg_1 = from_variant<int>(arguments[1]);
 	auto arg_2 = pointer_from_variant<const b3HullData *>(arguments[2]);
@@ -719,7 +719,8 @@ if (function == StringName("b3CollideHullAndTriangle")) {
 	auto arg_5 = from_variant<b3Vec3>(arguments[5]);
 	auto arg_6 = from_variant<int>(arguments[6]);
 	auto arg_7 = pointer_from_variant<b3SATCache *>(arguments[7]);
-	b3CollideHullAndTriangle(arg_0, arg_1, arg_2, arg_3, arg_4, arg_5, arg_6, arg_7);
+	auto arg_8 = from_variant<bool>(arguments[8]);
+	b3CollideHullAndTriangle(arg_0, arg_1, arg_2, arg_3, arg_4, arg_5, arg_6, arg_7, arg_8);
 	return Variant();
 }
 if (function == StringName("b3CollideHulls")) {
@@ -866,6 +867,14 @@ if (function == StringName("b3Cos")) {
 	auto result = b3Cos(arg_0);
 	return to_variant(result);
 }
+if (function == StringName("b3CreateBakedCompoundShape")) {
+	ERR_FAIL_COND_V_MSG(arguments.size() != 3, Variant(), "b3CreateBakedCompoundShape expects 3 arguments.");
+	auto arg_0 = from_variant<b3BodyId>(arguments[0]);
+	auto arg_1 = pointer_from_variant<b3ShapeDef *>(arguments[1]);
+	auto arg_2 = pointer_from_variant<const b3CompoundData *>(arguments[2]);
+	auto result = b3CreateBakedCompoundShape(arg_0, arg_1, arg_2);
+	return to_variant(result);
+}
 if (function == StringName("b3CreateBody")) {
 	ERR_FAIL_COND_V_MSG(arguments.size() != 2, Variant(), "b3CreateBody expects 2 arguments.");
 	auto arg_0 = from_variant<b3WorldId>(arguments[0]);
@@ -894,14 +903,6 @@ if (function == StringName("b3CreateCompound")) {
 	auto arg_0 = pointer_from_variant<const b3CompoundDef *>(arguments[0]);
 	auto result = b3CreateCompound(arg_0);
 	return (int64_t)(uintptr_t)result;
-}
-if (function == StringName("b3CreateCompoundShape")) {
-	ERR_FAIL_COND_V_MSG(arguments.size() != 3, Variant(), "b3CreateCompoundShape expects 3 arguments.");
-	auto arg_0 = from_variant<b3BodyId>(arguments[0]);
-	auto arg_1 = pointer_from_variant<b3ShapeDef *>(arguments[1]);
-	auto arg_2 = pointer_from_variant<const b3CompoundData *>(arguments[2]);
-	auto result = b3CreateCompoundShape(arg_0, arg_1, arg_2);
-	return to_variant(result);
 }
 if (function == StringName("b3CreateCone")) {
 	ERR_FAIL_COND_V_MSG(arguments.size() != 4, Variant(), "b3CreateCone expects 4 arguments.");
@@ -2970,16 +2971,6 @@ if (function == StringName("b3RayCastSphere")) {
 	auto result = b3RayCastSphere(arg_0, arg_1);
 	return to_variant(result);
 }
-if (function == StringName("b3ReadBinaryFile")) {
-	ERR_FAIL_COND_V_MSG(arguments.size() != 3, Variant(), "b3ReadBinaryFile expects 3 arguments.");
-	CharString string_0 = String(arguments[0]).utf8();
-	const char *arg_0 = string_0.get_data();
-	CharString string_1 = String(arguments[1]).utf8();
-	const char *arg_1 = string_1.get_data();
-	auto arg_2 = pointer_from_variant<int *>(arguments[2]);
-	auto result = b3ReadBinaryFile(arg_0, arg_1, arg_2);
-	return (int64_t)(uintptr_t)result;
-}
 if (function == StringName("b3RecPlayer_Create")) {
 	ERR_FAIL_COND_V_MSG(arguments.size() != 3, Variant(), "b3RecPlayer_Create expects 3 arguments.");
 	auto arg_0 = pointer_from_variant<const void *>(arguments[0]);
@@ -4434,29 +4425,10 @@ if (function == StringName("b3World_Draw")) {
 	b3World_Draw(arg_0, arg_1, arg_2);
 	return Variant();
 }
-if (function == StringName("b3World_Dump")) {
-	ERR_FAIL_COND_V_MSG(arguments.size() != 1, Variant(), "b3World_Dump expects 1 arguments.");
-	auto arg_0 = from_variant<b3WorldId>(arguments[0]);
-	b3World_Dump(arg_0);
-	return Variant();
-}
-if (function == StringName("b3World_DumpAwake")) {
-	ERR_FAIL_COND_V_MSG(arguments.size() != 1, Variant(), "b3World_DumpAwake expects 1 arguments.");
-	auto arg_0 = from_variant<b3WorldId>(arguments[0]);
-	b3World_DumpAwake(arg_0);
-	return Variant();
-}
 if (function == StringName("b3World_DumpMemoryStats")) {
 	ERR_FAIL_COND_V_MSG(arguments.size() != 1, Variant(), "b3World_DumpMemoryStats expects 1 arguments.");
 	auto arg_0 = from_variant<b3WorldId>(arguments[0]);
 	b3World_DumpMemoryStats(arg_0);
-	return Variant();
-}
-if (function == StringName("b3World_DumpShapeBounds")) {
-	ERR_FAIL_COND_V_MSG(arguments.size() != 2, Variant(), "b3World_DumpShapeBounds expects 2 arguments.");
-	auto arg_0 = from_variant<b3WorldId>(arguments[0]);
-	auto arg_1 = from_variant<b3BodyType>(arguments[1]);
-	b3World_DumpShapeBounds(arg_0, arg_1);
 	return Variant();
 }
 if (function == StringName("b3World_EnableContinuous")) {
@@ -4748,15 +4720,6 @@ if (function == StringName("b3World_StopRecording")) {
 	ERR_FAIL_COND_V_MSG(arguments.size() != 1, Variant(), "b3World_StopRecording expects 1 arguments.");
 	auto arg_0 = from_variant<b3WorldId>(arguments[0]);
 	b3World_StopRecording(arg_0);
-	return Variant();
-}
-if (function == StringName("b3WriteBinaryFile")) {
-	ERR_FAIL_COND_V_MSG(arguments.size() != 3, Variant(), "b3WriteBinaryFile expects 3 arguments.");
-	auto arg_0 = pointer_from_variant<void *>(arguments[0]);
-	auto arg_1 = from_variant<int>(arguments[1]);
-	CharString string_2 = String(arguments[2]).utf8();
-	const char *arg_2 = string_2.get_data();
-	b3WriteBinaryFile(arg_0, arg_1, arg_2);
 	return Variant();
 }
 if (function == StringName("b3Yield")) {

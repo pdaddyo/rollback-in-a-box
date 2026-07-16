@@ -54,6 +54,7 @@ public:
 	Ref<Box3DBuffer> make_buffer(const StringName &type, const Variant &value) const;
 	Ref<Box3DBuffer> make_byte_buffer(int64_t size) const;
 	int get_api_function_count() const;
+	void install_exit_on_assert() const;
 };
 
 } // namespace godot

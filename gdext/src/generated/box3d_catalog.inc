@@ -100,7 +100,7 @@ static const RawFunctionInfo raw_functions[] = {
 	{ "b3CollideCapsules", "void b3CollideCapsules(b3LocalManifold *, int, const b3Capsule *, const b3Capsule *, b3Transform)", "exported", "collision.h" },
 	{ "b3CollideHullAndCapsule", "void b3CollideHullAndCapsule(b3LocalManifold *, int, const b3HullData *, const b3Capsule *, b3Transform, b3SimplexCache *)", "exported", "collision.h" },
 	{ "b3CollideHullAndSphere", "void b3CollideHullAndSphere(b3LocalManifold *, int, const b3HullData *, const b3Sphere *, b3Transform, b3SimplexCache *)", "exported", "collision.h" },
-	{ "b3CollideHullAndTriangle", "void b3CollideHullAndTriangle(b3LocalManifold *, int, const b3HullData *, b3Vec3, b3Vec3, b3Vec3, int, b3SATCache *)", "exported", "collision.h" },
+	{ "b3CollideHullAndTriangle", "void b3CollideHullAndTriangle(b3LocalManifold *, int, const b3HullData *, b3Vec3, b3Vec3, b3Vec3, int, b3SATCache *, bool)", "exported", "collision.h" },
 	{ "b3CollideHulls", "void b3CollideHulls(b3LocalManifold *, int, const b3HullData *, const b3HullData *, b3Transform, b3SATCache *)", "exported", "collision.h" },
 	{ "b3CollideSphereAndTriangle", "void b3CollideSphereAndTriangle(b3LocalManifold *, int, const b3Sphere *, const b3Vec3 *)", "exported", "collision.h" },
 	{ "b3CollideSpheres", "void b3CollideSpheres(b3LocalManifold *, int, const b3Sphere *, const b3Sphere *, b3Transform)", "exported", "collision.h" },
@@ -121,11 +121,11 @@ static const RawFunctionInfo raw_functions[] = {
 	{ "b3ConvertBytesToCompound", "b3CompoundData * b3ConvertBytesToCompound(uint8_t *, int)", "exported", "collision.h" },
 	{ "b3ConvertCompoundToBytes", "uint8_t * b3ConvertCompoundToBytes(b3CompoundData *)", "exported", "collision.h" },
 	{ "b3Cos", "float b3Cos(float)", "inline", "public inline header" },
+	{ "b3CreateBakedCompoundShape", "b3ShapeId b3CreateBakedCompoundShape(b3BodyId, b3ShapeDef *, const b3CompoundData *)", "exported", "box3d.h" },
 	{ "b3CreateBody", "b3BodyId b3CreateBody(b3WorldId, const b3BodyDef *)", "exported", "box3d.h" },
 	{ "b3CreateBoxMesh", "b3MeshData * b3CreateBoxMesh(b3Vec3, b3Vec3, bool)", "exported", "collision.h" },
 	{ "b3CreateCapsuleShape", "b3ShapeId b3CreateCapsuleShape(b3BodyId, const b3ShapeDef *, const b3Capsule *)", "exported", "box3d.h" },
 	{ "b3CreateCompound", "b3CompoundData * b3CreateCompound(const b3CompoundDef *)", "exported", "collision.h" },
-	{ "b3CreateCompoundShape", "b3ShapeId b3CreateCompoundShape(b3BodyId, b3ShapeDef *, const b3CompoundData *)", "exported", "box3d.h" },
 	{ "b3CreateCone", "b3HullData * b3CreateCone(float, float, float, int)", "exported", "collision.h" },
 	{ "b3CreateCylinder", "b3HullData * b3CreateCylinder(float, float, float, int)", "exported", "collision.h" },
 	{ "b3CreateDistanceJoint", "b3JointId b3CreateDistanceJoint(b3WorldId, const b3DistanceJointDef *)", "exported", "box3d.h" },
@@ -236,7 +236,7 @@ static const RawFunctionInfo raw_functions[] = {
 	{ "b3DynamicTree_Validate", "void b3DynamicTree_Validate(const b3DynamicTree *)", "exported", "collision.h" },
 	{ "b3DynamicTree_ValidateNoEnlarged", "void b3DynamicTree_ValidateNoEnlarged(const b3DynamicTree *)", "exported", "collision.h" },
 	{ "b3GetAxisAngle", "b3Vec3 b3GetAxisAngle(float *, b3Quat)", "inline", "public inline header" },
-	{ "b3GetByteCount", "int32_t b3GetByteCount()", "exported", "base.h" },
+	{ "b3GetByteCount", "int b3GetByteCount()", "exported", "base.h" },
 	{ "b3GetCompoundCapsule", "b3CompoundCapsule b3GetCompoundCapsule(const b3CompoundData *, int)", "exported", "collision.h" },
 	{ "b3GetCompoundChild", "b3ChildShape b3GetCompoundChild(const b3CompoundData *, int)", "exported", "collision.h" },
 	{ "b3GetCompoundHull", "b3CompoundHull b3GetCompoundHull(const b3CompoundData *, int)", "exported", "collision.h" },
@@ -434,7 +434,6 @@ static const RawFunctionInfo raw_functions[] = {
 	{ "b3RayCastHull", "b3CastOutput b3RayCastHull(const b3HullData *, const b3RayCastInput *)", "exported", "collision.h" },
 	{ "b3RayCastMesh", "b3CastOutput b3RayCastMesh(const b3Mesh *, const b3RayCastInput *)", "exported", "collision.h" },
 	{ "b3RayCastSphere", "b3CastOutput b3RayCastSphere(const b3Sphere *, const b3RayCastInput *)", "exported", "collision.h" },
-	{ "b3ReadBinaryFile", "void * b3ReadBinaryFile(const char *, const char *, int *)", "exported", "base.h" },
 	{ "b3RecPlayer_Create", "b3RecPlayer * b3RecPlayer_Create(const void *, int, int)", "exported", "box3d.h" },
 	{ "b3RecPlayer_Destroy", "void b3RecPlayer_Destroy(b3RecPlayer *)", "exported", "box3d.h" },
 	{ "b3RecPlayer_DrawFrameQueries", "void b3RecPlayer_DrawFrameQueries(b3RecPlayer *, b3DebugDraw *, int, int)", "exported", "box3d.h" },
@@ -652,10 +651,7 @@ static const RawFunctionInfo raw_functions[] = {
 	{ "b3World_CastShape", "b3TreeStats b3World_CastShape(b3WorldId, b3Pos, const b3ShapeProxy *, b3Vec3, b3QueryFilter, b3CastResultFcn *, void *)", "exported", "box3d.h" },
 	{ "b3World_CollideMover", "void b3World_CollideMover(b3WorldId, b3Pos, const b3Capsule *, b3QueryFilter, b3PlaneResultFcn *, void *)", "exported", "box3d.h" },
 	{ "b3World_Draw", "void b3World_Draw(b3WorldId, b3DebugDraw *, uint64_t)", "exported", "box3d.h" },
-	{ "b3World_Dump", "void b3World_Dump(b3WorldId)", "exported", "box3d.h" },
-	{ "b3World_DumpAwake", "void b3World_DumpAwake(b3WorldId)", "exported", "box3d.h" },
 	{ "b3World_DumpMemoryStats", "void b3World_DumpMemoryStats(b3WorldId)", "exported", "box3d.h" },
-	{ "b3World_DumpShapeBounds", "void b3World_DumpShapeBounds(b3WorldId, b3BodyType)", "exported", "box3d.h" },
 	{ "b3World_EnableContinuous", "void b3World_EnableContinuous(b3WorldId, bool)", "exported", "box3d.h" },
 	{ "b3World_EnableSleeping", "void b3World_EnableSleeping(b3WorldId, bool)", "exported", "box3d.h" },
 	{ "b3World_EnableSpeculative", "void b3World_EnableSpeculative(b3WorldId, bool)", "exported", "box3d.h" },
@@ -699,7 +695,6 @@ static const RawFunctionInfo raw_functions[] = {
 	{ "b3World_StartRecording", "void b3World_StartRecording(b3WorldId, b3Recording *)", "exported", "box3d.h" },
 	{ "b3World_Step", "void b3World_Step(b3WorldId, float, int)", "exported", "box3d.h" },
 	{ "b3World_StopRecording", "void b3World_StopRecording(b3WorldId)", "exported", "box3d.h" },
-	{ "b3WriteBinaryFile", "void b3WriteBinaryFile(void *, int, const char *)", "exported", "base.h" },
 	{ "b3Yield", "void b3Yield()", "exported", "base.h" },
 };
 static int generated_function_count() { return (int)(sizeof(raw_functions) / sizeof(raw_functions[0])); }
@@ -1442,7 +1437,6 @@ static Dictionary generated_struct_info(const StringName &name) {
 		{ Dictionary field; field["name"] = "drawContactFeatures"; field["type"] = "bool"; fields.push_back(field); }
 		{ Dictionary field; field["name"] = "drawContactNormals"; field["type"] = "bool"; fields.push_back(field); }
 		{ Dictionary field; field["name"] = "drawContactForces"; field["type"] = "bool"; fields.push_back(field); }
-		{ Dictionary field; field["name"] = "drawFrictionForces"; field["type"] = "bool"; fields.push_back(field); }
 		{ Dictionary field; field["name"] = "drawIslands"; field["type"] = "bool"; fields.push_back(field); }
 		{ Dictionary field; field["name"] = "context"; field["type"] = "void *"; fields.push_back(field); }
 		out["fields"] = fields; return out;
@@ -2097,6 +2091,7 @@ static Dictionary generated_struct_info(const StringName &name) {
 		{ Dictionary field; field["name"] = "enablePreSolveEvents"; field["type"] = "bool"; fields.push_back(field); }
 		{ Dictionary field; field["name"] = "invokeContactCreation"; field["type"] = "bool"; fields.push_back(field); }
 		{ Dictionary field; field["name"] = "updateBodyMass"; field["type"] = "bool"; fields.push_back(field); }
+		{ Dictionary field; field["name"] = "enableSpeculativeContact"; field["type"] = "bool"; fields.push_back(field); }
 		{ Dictionary field; field["name"] = "internalValue"; field["type"] = "int"; fields.push_back(field); }
 		out["fields"] = fields; return out;
 	}

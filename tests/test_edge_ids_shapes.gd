@@ -159,6 +159,9 @@ extends SceneTree
 
 func _initialize() -> void:
 	var raw := Box3DRaw.new()
+	# Exit cleanly on the expected assertion instead of trapping, so this
+	# intentional death does not raise SIGABRT and file an OS crash report.
+	raw.install_exit_on_assert()
 	var world_def: Dictionary = raw.call_box3d(&\"b3DefaultWorldDef\", [])
 	var world: int = raw.call_box3d(&\"b3CreateWorld\", [raw.make_buffer(&\"b3WorldDef\", world_def)])
 	var constants: Dictionary = raw.get_constants()
@@ -185,8 +188,8 @@ func _initialize() -> void:
 """
 
 func check_joint_family_mismatch_in_child() -> void:
-	# The mismatch triggers B3_ASSERT -> __builtin_trap, which would kill this
-	# process, so it runs in a second headless Godot.
+	# The mismatch triggers B3_ASSERT, which kills the calling process, so it
+	# runs in a second headless Godot with an exit-on-assert handler installed.
 	var script_path: String = OS.get_cache_dir().path_join("box3d_edge_joint_mismatch_child.gd")
 	var file := FileAccess.open(script_path, FileAccess.WRITE)
 	if file == null:

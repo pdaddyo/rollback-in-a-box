@@ -9,6 +9,8 @@
 #include "box3d/box3d.h"
 #include "box3d/collision.h"
 
+#include "rollback_shim.h"
+
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
@@ -242,6 +244,10 @@ int Box3DRaw::get_api_function_count() const {
 	return generated_function_count();
 }
 
+void Box3DRaw::install_exit_on_assert() const {
+	b3r_install_exit_on_assert();
+}
+
 void Box3DRaw::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("call_box3d", "function", "arguments"), &Box3DRaw::call_box3d);
 	ClassDB::bind_method(D_METHOD("get_functions"), &Box3DRaw::get_functions);
@@ -254,4 +260,5 @@ void Box3DRaw::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("make_buffer", "type", "value"), &Box3DRaw::make_buffer);
 	ClassDB::bind_method(D_METHOD("make_byte_buffer", "size"), &Box3DRaw::make_byte_buffer);
 	ClassDB::bind_method(D_METHOD("get_api_function_count"), &Box3DRaw::get_api_function_count);
+	ClassDB::bind_method(D_METHOD("install_exit_on_assert"), &Box3DRaw::install_exit_on_assert);
 }
