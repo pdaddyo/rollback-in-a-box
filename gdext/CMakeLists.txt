@@ -14,6 +14,11 @@ endif()
 add_subdirectory(extern/box3d)
 add_subdirectory(extern/godot-cpp)
 
+# Engine-neutral rollback core (rb::RollbackWorld / rb::RollbackSession + the
+# snapshot shim). Depends on box3d only, and is the exact same code the Unreal
+# plugin compiles. The Godot classes below are thin adapters over it.
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../core ${CMAKE_CURRENT_BINARY_DIR}/core)
+
 option(BOX3D_ROLLBACK_BUILD_EXTENSION "Build the standalone GDExtension library" ON)
 
 add_library(box3d_rollback_core OBJECT
@@ -22,7 +27,6 @@ add_library(box3d_rollback_core OBJECT
     src/box3d_rollback_world.cpp
     src/box3d_rollback_session.cpp
     src/box3d_replay.cpp
-    src/rollback_shim.c
 )
 
 target_include_directories(box3d_rollback_core PUBLIC
@@ -30,7 +34,7 @@ target_include_directories(box3d_rollback_core PUBLIC
     extern/box3d/src
 )
 
-target_link_libraries(box3d_rollback_core PUBLIC godot-cpp box3d)
+target_link_libraries(box3d_rollback_core PUBLIC godot-cpp box3d box3d_rollback_neutral)
 
 set_target_properties(box3d_rollback_core PROPERTIES
     CXX_STANDARD 17
@@ -48,7 +52,7 @@ add_library(box3d_rollback SHARED
 )
 
 target_include_directories(box3d_rollback PRIVATE src)
-target_link_libraries(box3d_rollback PRIVATE godot-cpp box3d)
+target_link_libraries(box3d_rollback PRIVATE godot-cpp box3d box3d_rollback_neutral)
 
 get_target_property(GODOTCPP_SUFFIX godot-cpp GODOTCPP_SUFFIX)
 set(BOX3D_ROLLBACK_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../addons/box3d_rollback/bin"

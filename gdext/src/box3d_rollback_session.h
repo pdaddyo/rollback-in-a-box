@@ -1,95 +1,67 @@
-// Box3DRollbackSession: transport-agnostic network rollback session.
+// Box3DRollbackSession: Godot adapter over the engine-neutral rb::RollbackSession.
 //
-// The session owns prediction, rollback, packet encoding/decoding, acking,
-// state-hash exchange, and desync detection. Transport code only forwards the
-// opaque PackedByteArray returned by get_packet().
+// This class is now a thin marshalling shim. All rollback/prediction/netcode
+// logic lives in core/ (rb::RollbackSession). The adapter's jobs are:
+//   - expose the same GDScript-facing API and signals as before,
+//   - bridge the game's GDScript simulation Object to rb::IRollbackSimulation
+//     (GodotSimBridge, via Object::call reflection — games keep implementing the
+//     seven rollback_* methods in GDScript), and
+//   - turn core edge events into Godot signals.
+// Transport code only forwards the opaque PackedByteArray returned by get_packet().
 #pragma once
 
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
 
+#include "box3d_rollback/rb_session.h"
+#include "box3d_rollback/rb_simulation.h"
+
 namespace godot {
 
 class Object;
 
+// Forwards rb::IRollbackSimulation calls to a GDScript Object via reflection,
+// using a weak instance id so a freed simulation reports itself dead rather than
+// dereferencing a dangling pointer.
+class GodotSimBridge : public rb::IRollbackSimulation {
+	uint64_t instance_id = 0;
+	Object *resolve() const;
+
+public:
+	void set_object(Object *obj);
+
+	bool is_alive() const override;
+	bool has_world() const override;
+	int get_input_count() const override;
+	void init_snapshots(int slot_count) override;
+	bool save_state(int slot) override;
+	bool load_state(int slot) override;
+	uint64_t get_state_hash() const override;
+	void step_frame(const int64_t *inputs, int count) override;
+	bool supports_rollback_begin() const override;
+	void rollback_begin(int64_t target_frame, int window_frames, int players_mask) override;
+};
+
 class Box3DRollbackSession : public RefCounted {
 	GDCLASS(Box3DRollbackSession, RefCounted)
 
-public:
-	static constexpr int MAX_PLAYERS = 4;
-	static constexpr int RING = 128;
-	static constexpr int SNAPSHOT_SLOTS = 64;
-	static constexpr int MAX_SEND_INPUTS = 64;
-	static constexpr uint32_t PACKET_MAGIC = 0x42523344; // 'D3RB'
-	static constexpr uint8_t PACKET_VERSION = 2;
-	static constexpr uint32_t NO_FRAME = 0xFFFFFFFF;
-
-private:
-	struct FrameEntry {
-		int64_t frame = -1;
-		int64_t input[MAX_PLAYERS] = {};
-		uint8_t confirmed_mask = 0;
-	};
-	struct HashEntry {
-		int64_t frame = -1;
-		uint64_t hash = 0;
+	// Turns rb::RollbackSession edge events into Godot signals on the owner.
+	struct SignalObserver : public rb::ISessionObserver {
+		Box3DRollbackSession *owner = nullptr;
+		void on_desync(int64_t frame) override;
+		void on_peer_incompatible(int player, int64_t fingerprint) override;
 	};
 
-	Object *simulation = nullptr;
-	uint64_t simulation_instance_id = 0;
-	bool active = false;
-
-	int local_player = 0;
-	int num_players = 2;
-	int input_delay = 2;
-	int max_prediction = 8;
-
-	FrameEntry ring[RING];
-	HashEntry hashes[RING];
-	int64_t current_frame = 0;
-	int64_t confirmed_frame[MAX_PLAYERS] = { -1, -1, -1, -1 };
-	int64_t last_input[MAX_PLAYERS] = {};
-	int64_t first_incorrect = -1;
-	uint8_t mispredicted_mask = 0;
-	int last_mispredicted_mask = 0;
-
-	int64_t remote_current_frame[MAX_PLAYERS] = { -1, -1, -1, -1 };
-	int64_t remote_ack[MAX_PLAYERS] = { -1, -1, -1, -1 };
-	int64_t remote_hash_frame[MAX_PLAYERS] = { -1, -1, -1, -1 };
-	uint64_t remote_hash[MAX_PLAYERS] = {};
-	double advantage_ema[MAX_PLAYERS] = {};
-	double remote_advantage[MAX_PLAYERS] = {};
-	int64_t last_throttle_frame = -1;
-	uint64_t local_fingerprint = 0;
-	uint8_t incompatible_mask = 0;
-
-	bool stalled = false;
-	bool desynced = false;
-	int64_t desync_frame = -1;
-	int last_rollback_depth = 0;
-	int64_t total_rollback_frames = 0;
-	int64_t total_stalled_ticks = 0;
-
-	Object *live_simulation() const;
-	FrameEntry &entry_for(int64_t frame);
-	int64_t min_remote_confirmed() const;
-	int64_t min_remote_ack() const;
-	int64_t safe_frame() const;
-	bool sim_has_world() const;
-	int sim_input_count() const;
-	void sim_init_snapshots(int slot_count);
-	bool sim_save_state(int slot);
-	bool sim_load_state(int slot);
-	uint64_t sim_state_hash() const;
-	void sim_step_frame(const PackedInt64Array &inputs);
-	void sim_one(int64_t frame);
-	void do_rollback();
-	void check_remote_hash();
+	rb::RollbackSession session;
+	GodotSimBridge bridge;
+	SignalObserver observer;
 
 protected:
 	static void _bind_methods();
 
 public:
+	Box3DRollbackSession();
+
 	void set_simulation(Object *p_simulation);
 	void configure(int p_local_player, int p_num_players, int p_input_delay = 2, int p_max_prediction = 8);
 	void start();
@@ -98,23 +70,20 @@ public:
 	PackedByteArray get_packet();
 	void ingest_packet(const PackedByteArray &packet);
 
-	int64_t get_current_frame() const { return current_frame; }
-	int64_t get_confirmed_frame() const { return min_remote_confirmed(); }
-	int64_t get_safe_frame() const { return safe_frame(); }
-	bool is_stalled() const { return stalled; }
-	bool is_desynced() const { return desynced; }
-	int64_t get_desync_frame() const { return desync_frame; }
-	int get_last_rollback_depth() const { return last_rollback_depth; }
-	int get_last_mispredicted_mask() const { return last_mispredicted_mask; }
-	int64_t get_total_rollback_frames() const { return total_rollback_frames; }
-	int64_t get_total_stalled_ticks() const { return total_stalled_ticks; }
-	double get_frame_advantage() const;
-	int64_t get_hash_for_frame(int64_t frame) const;
-	int get_incompatible_peer_mask() const { return incompatible_mask; }
+	int64_t get_current_frame() const { return session.get_current_frame(); }
+	int64_t get_confirmed_frame() const { return session.get_confirmed_frame(); }
+	int64_t get_safe_frame() const { return session.get_safe_frame(); }
+	bool is_stalled() const { return session.is_stalled(); }
+	bool is_desynced() const { return session.is_desynced(); }
+	int64_t get_desync_frame() const { return session.get_desync_frame(); }
+	int get_last_rollback_depth() const { return session.get_last_rollback_depth(); }
+	int get_last_mispredicted_mask() const { return session.get_last_mispredicted_mask(); }
+	int64_t get_total_rollback_frames() const { return session.get_total_rollback_frames(); }
+	int64_t get_total_stalled_ticks() const { return session.get_total_stalled_ticks(); }
+	double get_frame_advantage() const { return session.get_frame_advantage(); }
+	int64_t get_hash_for_frame(int64_t frame) const { return session.get_hash_for_frame(frame); }
+	int get_incompatible_peer_mask() const { return session.get_incompatible_peer_mask(); }
 
-	// Determinism fingerprint of this binary. Peers with different fingerprints
-	// are rejected at the packet layer; games should also compare fingerprints
-	// during matchmaking before starting a session.
 	static int64_t get_build_fingerprint();
 };
 

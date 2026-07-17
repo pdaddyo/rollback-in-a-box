@@ -4,19 +4,25 @@
   <img src="docs/logo.png" alt="rollback-in-a-box (3d) — Box3D rollback physics system" width="520">
 </p>
 
-Deterministic network rollback physics for Godot, powered by [Box3D](https://github.com/erincatto/box3d) by Erin Catto.
+Deterministic network rollback physics for **Godot and Unreal**, powered by
+[Box3D](https://github.com/erincatto/box3d) by Erin Catto.
 
-`rollback-in-a-box` is a Godot 4 GDExtension with three deliberately separate
-layers:
+The rollback and physics logic lives in an engine-neutral C++/C core
+(`/core`) that depends only on Box3D. Each engine is a thin adapter over it —
+there is one copy of the netcode, not two:
 
-- The complete public Box3D C API, generated into a Godot-facing `Box3D` class.
-- Deterministic full-world snapshots, hashes, recording, and replay.
-- Transport-agnostic rollback networking for 2-4 players with prediction,
-  input resend, acking, confirmed-frame hashes, desync detection, and
-  frame-advantage throttling.
+- **Godot 4 GDExtension** (`/gdext`) — `Box3DRollbackWorld`,
+  `Box3DRollbackSession`, plus the generated `Box3D` raw-API facade and a
+  replay viewer.
+- **Unreal Engine 5.8 plugin** (`/unreal/Box3DRollback`) —
+  `UBox3DRollbackWorld`, `UBox3DRollbackSession`, `IBox3DRollbackSimulation`,
+  Blueprint-exposed.
 
-Your game owns game rules, rendering, matchmaking, and byte transport. The
-extension owns physics state, rollback mechanics, and the rollback protocol.
+The core provides deterministic full-world snapshots, hashes, recording, and
+transport-agnostic rollback networking for 2-4 players (prediction, input
+resend, acking, confirmed-frame hashes, desync detection, frame-advantage
+throttling). Your game owns game rules, rendering, matchmaking, and byte
+transport. See [Dual-engine architecture](docs/dual-engine-architecture.md).
 
 ## Highlights
 
@@ -107,8 +113,21 @@ relay. Pass received bytes unchanged to `session.ingest_packet(packet)`. For
 3- or 4-player sessions, send every packet to every other peer and pass their
 player count to `configure()`.
 
+### Unreal Engine 5.8
+
+```sh
+./gdext/setup_deps.sh          # shared: clones the pinned Box3D
+./unreal/build_thirdparty.sh   # builds box3d + neutral-core static libs
+```
+
+Then enable **Box3D Rollback** (`/unreal/Box3DRollback`) in a UE 5.8 project.
+The Blueprint/C++ API mirrors the Godot classes; see the
+[plugin README](unreal/Box3DRollback/README.md).
+
 ## Documentation
 
+- [Dual-engine architecture](docs/dual-engine-architecture.md)
+- [Unreal plugin](unreal/Box3DRollback/README.md)
 - [Raw Box3D API](docs/raw-box3d-api.md)
 - [API boundary](docs/api-boundary.md)
 - [Generated API reference](docs/api-reference.md)

@@ -7,3 +7,9 @@ addons/box3d_rollback/bin/
 *.tmp
 *.log
 .DS_Store
+
+# Unreal plugin build artifacts
+unreal/thirdparty/build/
+unreal/Box3DRollback/Source/ThirdParty/Box3DRollbackLibrary/lib/
+unreal/Box3DRollback/Binaries/
+unreal/Box3DRollback/Intermediate/
