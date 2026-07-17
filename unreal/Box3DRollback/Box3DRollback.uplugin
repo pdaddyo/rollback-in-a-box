@@ -1,0 +1,24 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "Box3D Rollback",
+	"Description": "Deterministic network rollback physics on Box3D. Thin Unreal adapter over the engine-neutral rollback core shared with the Godot build.",
+	"Category": "Physics",
+	"CreatedBy": "rollback-in-a-box",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EngineVersion": "5.8.0",
+	"CanContainContent": false,
+	"IsBetaVersion": true,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "Box3DRollback",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}
