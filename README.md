@@ -1,10 +1,10 @@
-# rollback-in-a-box
+# rollback-in-a-box - _Box3d for Unreal and Godot_
 
 <p align="center">
   <img src="docs/logo.png" alt="rollback-in-a-box (3d) — Box3D rollback physics system" width="520">
 </p>
 
-Deterministic network rollback physics for **Godot and Unreal**, powered by
+Deterministic network rollback physics for **_Godot_ and _Unreal_**, powered by
 [Box3D](https://github.com/erincatto/box3d) by Erin Catto.
 
 The rollback and physics logic lives in an engine-neutral C++/C core
