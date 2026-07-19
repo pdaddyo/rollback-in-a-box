@@ -42,14 +42,10 @@ public class Box3DRollback : ModuleRules
 		PublicIncludePaths.Add(Box3DInclude);
 
 		// Box3D's process-global state (worlds array, length-units global) must
-		// exist exactly ONCE per process. This module re-exports the whole C API
-		// from its DLL (see Private/Box3DApiExport.cpp); consumers that call the
-		// raw API compile with BOX3D_EXPORT=__declspec(dllimport) and resolve
-		// against this DLL instead of linking their own copy of the static lib.
-		if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			PrivateDefinitions.Add("BOX3D_EXPORT=__declspec(dllexport)");
-		}
+		// exist exactly ONCE per process: Private/Box3DApiExport.cpp re-exports
+		// every B3_API symbol from this DLL via /EXPORT pragmas; consumers that
+		// call the raw API compile with BOX3D_EXPORT=__declspec(dllimport) and
+		// resolve against this DLL instead of their own copy of the static lib.
 
 		// Prebuilt static libs, one subdir per platform (see build_thirdparty).
 		string LibDir = Path.Combine(PluginRoot, "Source", "ThirdParty",
