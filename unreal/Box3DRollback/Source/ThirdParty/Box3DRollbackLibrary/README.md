@@ -12,5 +12,7 @@ They are **not committed**. Generate them from the repo root with:
 ```
 
 That produces `lib/<Platform>/` (e.g. `lib/Win64/`, `lib/Mac/`, `lib/Linux/`)
-containing the `.lib`/`.a` files `Box3DRollback.Build.cs` references. Rebuild
-whenever the pinned Box3D revision or the core changes.
+containing the `.lib`/`.a` files `Box3DRollbackLibrary.Build.cs` references.
+The runtime module depends on this external module privately so these archives
+cannot propagate into another dylib and create a second Box3D global state.
+Rebuild whenever the pinned Box3D revision or the core changes.

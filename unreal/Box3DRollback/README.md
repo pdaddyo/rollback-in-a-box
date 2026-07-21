@@ -23,6 +23,13 @@ The raw 700-function Box3D binding and the replay viewer are **not** ported:
 Unreal C++ can call Box3D directly, and rendering belongs in the game. See the
 architecture doc for the rationale.
 
+Box3D has process-global state, so modular builds must keep one live copy. The
+prebuilt static libraries are a private dependency of this plugin module. On
+Windows, raw consumers import the plugin's re-exported B3_API. On other targets,
+engine-neutral consumers call the needed functions through the versioned table
+in `Box3DRollbackRawApi.h`; directly linking the static library into another
+module would create an isolated `b3_worlds` array.
+
 ## Prerequisites
 
 1. Fetch the pinned Box3D + build the shared static libraries (from the repo root):

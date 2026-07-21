@@ -28,6 +28,7 @@ public class Box3DRollback : ModuleRules
 			"CoreUObject",
 			"Engine",
 		});
+		PrivateDependencyModuleNames.Add("Box3DRollbackLibrary");
 
 		// unreal/Box3DRollback/Source/Box3DRollback -> plugin root -> repo root.
 		string PluginRoot = Path.GetFullPath(Path.Combine(ModuleDirectory, "..", ".."));
@@ -41,25 +42,10 @@ public class Box3DRollback : ModuleRules
 		PublicIncludePaths.Add(CoreIncludeFlat); // for the unqualified "rollback_shim.h"
 		PublicIncludePaths.Add(Box3DInclude);
 
-		// Box3D's process-global state (worlds array, length-units global) must
-		// exist exactly ONCE per process: Private/Box3DApiExport.cpp re-exports
-		// every B3_API symbol from this DLL via /EXPORT pragmas; consumers that
-		// call the raw API compile with BOX3D_EXPORT=__declspec(dllimport) and
-		// resolve against this DLL instead of their own copy of the static lib.
-
-		// Prebuilt static libs, one subdir per platform (see build_thirdparty).
-		string LibDir = Path.Combine(PluginRoot, "Source", "ThirdParty",
-			"Box3DRollbackLibrary", "lib", Target.Platform.ToString());
-
-		if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "box3d_rollback_neutral.lib"));
-			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "box3d.lib"));
-		}
-		else
-		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "libbox3d_rollback_neutral.a"));
-			PublicAdditionalLibraries.Add(Path.Combine(LibDir, "libbox3d.a"));
-		}
+		// The private external-module dependency owns the static libraries.
+		// Keeping them private is essential: propagating Box3D into raw-API
+		// consumers creates a second b3_worlds array in modular builds.
+		// Windows consumers import the re-exported C API; Mach-O/ELF consumers
+		// use Box3DRollbackRawApi.h's function table.
 	}
 }
