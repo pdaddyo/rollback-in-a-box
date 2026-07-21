@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cfloat>
 #include <cmath>
 #include <cstring>
 #include <unordered_set>
@@ -32,6 +33,25 @@ uint64_t fnv_f32(uint64_t h, float value) {
 
 b3Vec3 to_b3(const Vec3 &v) {
 	return { v.x, v.y, v.z };
+}
+
+struct CharacterPlaneContext {
+	static constexpr int CAPACITY = 32;
+	b3CollisionPlane planes[CAPACITY] = {};
+	int count = 0;
+};
+
+bool collect_character_planes(b3ShapeId, const b3PlaneResult *results, int count, void *context) {
+	CharacterPlaneContext *planes = static_cast<CharacterPlaneContext *>(context);
+	for (int i = 0; i < count && planes->count < CharacterPlaneContext::CAPACITY; ++i) {
+		planes->planes[planes->count++] = b3CollisionPlane{
+			.plane = results[i].plane,
+			.pushLimit = FLT_MAX,
+			.push = 0.0f,
+			.clipVelocity = true,
+		};
+	}
+	return true;
 }
 
 } // namespace
@@ -65,6 +85,10 @@ void RollbackWorld::destroy_world() {
 		b3DestroyWorld(world_id);
 		world_id = b3_nullWorldId;
 	}
+	for (b3CompoundData *compound : compounds) {
+		b3DestroyCompound(compound);
+	}
+	compounds.clear();
 	if (recording != nullptr) {
 		b3DestroyRecording(recording);
 		recording = nullptr;
@@ -104,6 +128,59 @@ int RollbackWorld::add_static_box(const Vec3 &position, const Vec3 &half_extents
 	b3BoxHull hull = b3MakeBoxHull(half_extents.x, half_extents.y, half_extents.z);
 	b3CreateHullShape(body, &shape_def, &hull.base);
 	return register_body(body, half_extents, BODY_STATIC);
+}
+
+int RollbackWorld::add_static_compound_boxes(const Vec3 *positions, const Vec3 *half_extents,
+		int count, float friction) {
+	if (!has_world() || positions == nullptr || half_extents == nullptr || count <= 0) {
+		return -1;
+	}
+
+	std::vector<b3BoxHull> box_hulls;
+	std::vector<b3CompoundHullDef> hull_defs;
+	box_hulls.reserve((size_t)count);
+	hull_defs.reserve((size_t)count);
+	b3SurfaceMaterial material = b3DefaultSurfaceMaterial();
+	material.friction = friction;
+	for (int i = 0; i < count; ++i) {
+		const Vec3 &half = half_extents[i];
+		if (!(half.x > 0.0f) || !(half.y > 0.0f) || !(half.z > 0.0f)) {
+			return -1;
+		}
+		box_hulls.push_back(b3MakeBoxHull(half.x, half.y, half.z));
+		b3Transform transform = {to_b3(positions[i]), b3Quat_identity};
+		hull_defs.push_back(b3CompoundHullDef{
+			.hull = &box_hulls.back().base,
+			.transform = transform,
+			.material = material,
+		});
+	}
+
+	b3CompoundDef compound_def = {};
+	compound_def.hulls = hull_defs.data();
+	compound_def.hullCount = count;
+	b3CompoundData *compound = b3CreateCompound(&compound_def);
+	if (compound == nullptr) {
+		return -1;
+	}
+
+	b3BodyDef body_def = b3DefaultBodyDef();
+	b3BodyId body = b3CreateBody(world_id, &body_def);
+	b3ShapeDef shape_def = b3DefaultShapeDef();
+	shape_def.baseMaterial.friction = friction;
+	// Compounds represent the immutable level world. Give the broad-phase
+	// proxy one precise category instead of the all-bits default so character
+	// mover queries can select it without admitting dynamic force proxies.
+	shape_def.filter.categoryBits = 1ull;
+	shape_def.filter.maskBits = UINT64_MAX;
+	b3ShapeId shape = b3CreateBakedCompoundShape(body, &shape_def, compound);
+	if (B3_IS_NULL(shape)) {
+		b3DestroyBody(body);
+		b3DestroyCompound(compound);
+		return -1;
+	}
+	compounds.push_back(compound);
+	return register_body(body, Vec3{}, BODY_STATIC);
 }
 
 int RollbackWorld::add_dynamic_box(const Vec3 &position, const Vec3 &half_extents, float density, float friction) {
@@ -192,6 +269,79 @@ int RollbackWorld::add_dynamic_capsule(const Vec3 &position, const Vec3 &point_a
 	b3Capsule capsule = { to_b3(point_a), to_b3(point_b), radius };
 	b3CreateCapsuleShape(body, &shape_def, &capsule);
 	return register_body(body, Vec3{ radius, radius, radius }, BODY_DYNAMIC);
+}
+
+CharacterMoverResult RollbackWorld::resolve_character_mover(int handle, const Vec3 &start_position,
+		float half_height, float radius, uint64_t query_category_bits, uint64_t query_mask_bits) {
+	CharacterMoverResult out;
+	if (!has_world() || handle < 0 || handle >= (int)bodies.size() || bodies[(size_t)handle] == 0 ||
+		!(radius > 0.0f) || !(half_height > radius)) {
+		return out;
+	}
+
+	b3BodyId body = b3LoadBodyId(bodies[(size_t)handle]);
+	if (!b3Body_IsValid(body)) {
+		return out;
+	}
+	const b3Vec3 start = to_b3(start_position);
+	const b3Vec3 target = b3Body_GetPosition(body);
+	const float half_segment = half_height - radius;
+	b3Capsule capsule = {
+		.center1 = {0.0f, 0.0f, -half_segment},
+		.center2 = {0.0f, 0.0f, half_segment},
+		.radius = radius,
+	};
+	b3QueryFilter filter = b3DefaultQueryFilter();
+	filter.categoryBits = query_category_bits;
+	filter.maskBits = query_mask_bits;
+	filter.name = "rollback_character_mover";
+
+	// Box3D's documented workflow, iterated like the upstream CharacterMover
+	// sample so a blocked normal component can turn into a tangential slide.
+	b3Vec3 current = start;
+	CharacterPlaneContext final_planes;
+	constexpr int max_iterations = 5;
+	constexpr float tolerance_squared = 0.01f * 0.01f;
+	for (int iteration = 0; iteration < max_iterations; ++iteration) {
+		b3Vec3 desired = target - current;
+		float fraction = b3World_CastMover(world_id, current, &capsule, desired, filter, nullptr, nullptr);
+		current += fraction * desired;
+
+		CharacterPlaneContext planes;
+		b3World_CollideMover(world_id, current, &capsule, filter, collect_character_planes, &planes);
+		b3Vec3 remaining = target - current;
+		b3PlaneSolverResult solved = b3SolvePlanes(remaining, planes.planes, planes.count);
+		out.solver_iterations += solved.iterationCount;
+		final_planes = planes;
+		if (b3LengthSquared(solved.delta) < tolerance_squared) {
+			break;
+		}
+		fraction = b3World_CastMover(world_id, current, &capsule, solved.delta, filter, nullptr, nullptr);
+		b3Vec3 applied = fraction * solved.delta;
+		current += applied;
+		if (b3LengthSquared(applied) < tolerance_squared) {
+			break;
+		}
+	}
+
+	// Keep the blocking planes that produced the correction. A final collide
+	// after depenetration can legitimately omit the wall we just moved away
+	// from; replacing the set would let inward velocity accumulate again.
+	// Append any planes at the committed position (notably the floor), then
+	// clip against the union exactly as the upstream sample keeps m_planes.
+	CharacterPlaneContext clip_planes = final_planes;
+	b3World_CollideMover(world_id, current, &capsule, filter, collect_character_planes, &clip_planes);
+	for (int i = 0; i < clip_planes.count; ++i) {
+		out.grounded |= clip_planes.planes[i].plane.normal.z > 0.5f;
+	}
+	b3Vec3 velocity = b3Body_GetLinearVelocity(body);
+	velocity = b3ClipVector(velocity, clip_planes.planes, clip_planes.count);
+	b3Body_SetTransform(body, current, b3Body_GetRotation(body));
+	b3Body_SetLinearVelocity(body, velocity);
+
+	out.valid = true;
+	out.plane_count = clip_planes.count;
+	return out;
 }
 
 void RollbackWorld::set_body_linear_velocity(int handle, const Vec3 &velocity) {

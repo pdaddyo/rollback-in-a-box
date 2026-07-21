@@ -32,6 +32,13 @@ struct RollbackScope {
 	bool valid = false;
 };
 
+struct CharacterMoverResult {
+	bool valid = false;
+	bool grounded = false;
+	int plane_count = 0;
+	int solver_iterations = 0;
+};
+
 class RollbackWorld : public IRollbackSimulation {
 public:
 	static constexpr float DEFAULT_TIME_STEP = 1.0f / 60.0f;
@@ -54,11 +61,22 @@ public:
 	void destroy_world();
 
 	int add_static_box(const Vec3 &position, const Vec3 &half_extents, float friction = 0.6f);
+	// Builds one immutable Box3D compound shape containing every box. The
+	// compound owns an internal static AABB tree, so large authored levels use
+	// one broad-phase proxy while narrow-phase queries visit only nearby
+	// children. Positions are compound-local (the body lives at the origin).
+	int add_static_compound_boxes(const Vec3 *positions, const Vec3 *half_extents,
+		int count, float friction = 0.6f);
 	int add_dynamic_box(const Vec3 &position, const Vec3 &half_extents, float density = 300.0f, float friction = 0.6f);
 	int add_static_sphere(const Vec3 &position, float radius, float friction = 0.6f);
 	int add_dynamic_sphere(const Vec3 &position, float radius, float density = 300.0f, float friction = 0.6f);
 	int add_static_capsule(const Vec3 &position, const Vec3 &point_a, const Vec3 &point_b, float radius, float friction = 0.6f);
 	int add_dynamic_capsule(const Vec3 &position, const Vec3 &point_a, const Vec3 &point_b, float radius, float density = 300.0f, float friction = 0.6f);
+	// Applies Box3D's geometric character workflow to a dynamic force-proxy
+	// body after the rigid solve: cast attempted displacement, gather/solve
+	// planes, commit the corrected position, and clip blocked velocity.
+	CharacterMoverResult resolve_character_mover(int handle, const Vec3 &start_position,
+		float half_height, float radius, uint64_t query_category_bits, uint64_t query_mask_bits);
 
 	void set_body_linear_velocity(int handle, const Vec3 &velocity);
 	Vec3 get_body_velocity(int handle) const;
@@ -126,6 +144,9 @@ private:
 	uint64_t frame = 0;
 	std::vector<uint64_t> bodies;
 	std::vector<float> body_meta;
+	// b3CreateBakedCompoundShape keeps the immutable compound pointer; retain
+	// it until after its owning Box3D world has been destroyed.
+	std::vector<b3CompoundData *> compounds;
 
 	int worker_count = 1;
 	int input_count = 2;

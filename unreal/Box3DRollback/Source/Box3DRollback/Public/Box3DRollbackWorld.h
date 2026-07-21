@@ -34,6 +34,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Box3D Rollback|Bodies")
 	int32 AddStaticBox(FVector Position, FVector HalfExtents, float Friction = 0.6f);
+	// One immutable, internally tree-accelerated static compound. Arrays must
+	// have the same non-zero length; each child is an axis-aligned box in world
+	// space because the compound body is created at the origin.
+	UFUNCTION(BlueprintCallable, Category = "Box3D Rollback|Bodies")
+	int32 AddStaticCompoundBoxes(const TArray<FVector>& Positions,
+		const TArray<FVector>& HalfExtents, float Friction = 0.6f);
 	UFUNCTION(BlueprintCallable, Category = "Box3D Rollback|Bodies")
 	int32 AddDynamicBox(FVector Position, FVector HalfExtents, float Density = 300.0f, float Friction = 0.6f);
 	UFUNCTION(BlueprintCallable, Category = "Box3D Rollback|Bodies")
@@ -44,6 +50,13 @@ public:
 	int32 AddStaticCapsule(FVector Position, FVector PointA, FVector PointB, float Radius, float Friction = 0.6f);
 	UFUNCTION(BlueprintCallable, Category = "Box3D Rollback|Bodies")
 	int32 AddDynamicCapsule(FVector Position, FVector PointA, FVector PointB, float Radius, float Density = 300.0f, float Friction = 0.6f);
+
+	// C++ fixed-step hook for a physical-force/geometric-collision hybrid.
+	// Returns false only for an invalid body or capsule; OutGrounded is based
+	// on the final Box3D collision planes.
+	bool ResolveCharacterMover(int32 Handle, FVector StartPosition, float HalfHeight, float Radius,
+		uint64 QueryCategoryBits, uint64 QueryMaskBits, bool& OutGrounded,
+		int32& OutPlaneCount, int32& OutSolverIterations);
 
 	UFUNCTION(BlueprintCallable, Category = "Box3D Rollback|Bodies")
 	void SetBodyLinearVelocity(int32 Handle, FVector Velocity);

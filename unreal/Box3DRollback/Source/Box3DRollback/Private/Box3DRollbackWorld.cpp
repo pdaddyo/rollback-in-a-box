@@ -44,6 +44,27 @@ int32 UBox3DRollbackWorld::AddStaticBox(FVector Position, FVector HalfExtents, f
 	return Core->add_static_box(ToRb(Position), ToRb(HalfExtents), Friction);
 }
 
+int32 UBox3DRollbackWorld::AddStaticCompoundBoxes(const TArray<FVector>& Positions,
+	const TArray<FVector>& HalfExtents, float Friction)
+{
+	// Core clones and retains the immutable compound for the lifetime of this world.
+	if (Positions.IsEmpty() || Positions.Num() != HalfExtents.Num())
+	{
+		return -1;
+	}
+	std::vector<rb::Vec3> RbPositions;
+	std::vector<rb::Vec3> RbHalfExtents;
+	RbPositions.reserve(Positions.Num());
+	RbHalfExtents.reserve(HalfExtents.Num());
+	for (int32 Index = 0; Index < Positions.Num(); ++Index)
+	{
+		RbPositions.push_back(ToRb(Positions[Index]));
+		RbHalfExtents.push_back(ToRb(HalfExtents[Index]));
+	}
+	return Core->add_static_compound_boxes(RbPositions.data(), RbHalfExtents.data(),
+		Positions.Num(), Friction);
+}
+
 int32 UBox3DRollbackWorld::AddDynamicBox(FVector Position, FVector HalfExtents, float Density, float Friction)
 {
 	return Core->add_dynamic_box(ToRb(Position), ToRb(HalfExtents), Density, Friction);
@@ -67,6 +88,18 @@ int32 UBox3DRollbackWorld::AddStaticCapsule(FVector Position, FVector PointA, FV
 int32 UBox3DRollbackWorld::AddDynamicCapsule(FVector Position, FVector PointA, FVector PointB, float Radius, float Density, float Friction)
 {
 	return Core->add_dynamic_capsule(ToRb(Position), ToRb(PointA), ToRb(PointB), Radius, Density, Friction);
+}
+
+bool UBox3DRollbackWorld::ResolveCharacterMover(int32 Handle, FVector StartPosition,
+	float HalfHeight, float Radius, uint64 QueryCategoryBits, uint64 QueryMaskBits,
+	bool& OutGrounded, int32& OutPlaneCount, int32& OutSolverIterations)
+{
+	const rb::CharacterMoverResult Result = Core->resolve_character_mover(Handle, ToRb(StartPosition),
+		HalfHeight, Radius, QueryCategoryBits, QueryMaskBits);
+	OutGrounded = Result.grounded;
+	OutPlaneCount = Result.plane_count;
+	OutSolverIterations = Result.solver_iterations;
+	return Result.valid;
 }
 
 void UBox3DRollbackWorld::SetBodyLinearVelocity(int32 Handle, FVector Velocity)
