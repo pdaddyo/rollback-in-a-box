@@ -53,6 +53,12 @@ struct FBox3DRollbackRawApi
 	decltype(&b3Shape_SetFilter) ShapeSetFilter = &b3Shape_SetFilter;
 	decltype(&b3World_SetGravity) WorldSetGravity = &b3World_SetGravity;
 	decltype(&b3World_SetMaximumLinearSpeed) WorldSetMaximumLinearSpeed = &b3World_SetMaximumLinearSpeed;
+
+	// Appended 2026-07-24 (baked static mesh compounds): deterministic casts
+	// against immutable compound data for game-side gameplay queries. Appended
+	// at the END — Version/Size let old consumers keep their smaller view.
+	decltype(&b3RayCastCompound) RayCastCompound = &b3RayCastCompound;
+	decltype(&b3ShapeCastCompound) ShapeCastCompound = &b3ShapeCastCompound;
 };
 
 extern "C" BOX3DROLLBACK_API const FBox3DRollbackRawApi* Box3DRollback_GetRawApiV1();

@@ -58,6 +58,18 @@ public:
 		uint64 QueryCategoryBits, uint64 QueryMaskBits, bool& OutGrounded,
 		int32& OutPlaneCount, int32& OutSolverIterations);
 
+	// C++-only (adapter-level for now; TODO upstream into rb::RollbackWorld and
+	// the Godot adapter). Mounts a PRE-BAKED immutable static compound
+	// serialized with b3ConvertCompoundToBytes — children may be hulls, MESHES,
+	// spheres, capsules: level geometry baked offline. The bytes are moved into
+	// wrapper-owned storage (they are fixed up in place and must stay alive and
+	// unmoved for the world's lifetime), the body is created at the origin with
+	// the same broad-phase identity as the box compound (level world, category
+	// 1), so character-mover queries collide against it. OutCompound receives
+	// the typed b3CompoundData pointer for game-side deterministic casts
+	// against the same data. Returns false on validation/creation failure.
+	bool MountStaticBakedCompound(TArray<uint8> Bytes, float Friction, const void*& OutCompound);
+
 	UFUNCTION(BlueprintCallable, Category = "Box3D Rollback|Bodies")
 	void SetBodyLinearVelocity(int32 Handle, FVector Velocity);
 	UFUNCTION(BlueprintPure, Category = "Box3D Rollback|Bodies")
@@ -159,4 +171,10 @@ private:
 	// is complete). A TUniquePtr member would force UHT's generated vtable-helper
 	// constructor to instantiate the deleter on the forward-declared type.
 	rb::RollbackWorld* Core = nullptr;
+
+	// Backing storage for mounted baked compounds: b3ConvertBytesToCompound
+	// fixes pointers up IN PLACE and does not clone, so each blob must live,
+	// unmoved, as long as the world that references it. Cleared on
+	// CreateWorld/DestroyWorld (never while a world is live).
+	TArray<TArray<uint8>> BakedCompoundStorage;
 };

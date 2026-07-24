@@ -2,6 +2,11 @@
 
 #include "box3d_rollback/rb_world.h"
 
+// Adapter-level baked-compound mount (see MountStaticBakedCompound): raw Box3D
+// calls stay INSIDE the plugin module, which links the one true static Box3D.
+#include "box3d/box3d.h"
+#include "box3d/collision.h"
+
 #include <vector>
 
 namespace
@@ -35,8 +40,18 @@ void UBox3DRollbackWorld::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-void UBox3DRollbackWorld::CreateWorld() { Core->create_world(); }
-void UBox3DRollbackWorld::DestroyWorld() { Core->destroy_world(); }
+void UBox3DRollbackWorld::CreateWorld()
+{
+	BakedCompoundStorage.Empty();   // stale blobs from a previous world
+	Core->create_world();
+}
+
+void UBox3DRollbackWorld::DestroyWorld()
+{
+	Core->destroy_world();
+	BakedCompoundStorage.Empty();   // world gone — the blobs may now be freed
+}
+
 bool UBox3DRollbackWorld::HasWorld() const { return Core->has_world(); }
 
 int32 UBox3DRollbackWorld::AddStaticBox(FVector Position, FVector HalfExtents, float Friction)
@@ -88,6 +103,46 @@ int32 UBox3DRollbackWorld::AddStaticCapsule(FVector Position, FVector PointA, FV
 int32 UBox3DRollbackWorld::AddDynamicCapsule(FVector Position, FVector PointA, FVector PointB, float Radius, float Density, float Friction)
 {
 	return Core->add_dynamic_capsule(ToRb(Position), ToRb(PointA), ToRb(PointB), Radius, Density, Friction);
+}
+
+bool UBox3DRollbackWorld::MountStaticBakedCompound(TArray<uint8> Bytes, float Friction,
+	const void*& OutCompound)
+{
+	OutCompound = nullptr;
+	if (!Core->has_world() || Bytes.IsEmpty())
+	{
+		return false;
+	}
+
+	// Take ownership so the blob outlives the world; fix-up happens in place.
+	const int32 StorageIndex = BakedCompoundStorage.Add(MoveTemp(Bytes));
+	TArray<uint8>& Blob = BakedCompoundStorage[StorageIndex];
+	b3CompoundData* Compound = b3ConvertBytesToCompound(Blob.GetData(), Blob.Num());
+	if (Compound == nullptr)
+	{
+		BakedCompoundStorage.RemoveAt(StorageIndex);
+		return false;
+	}
+
+	const b3WorldId WorldId = b3LoadWorldId((uint32_t)Core->get_world_id());
+	b3BodyDef BodyDef = b3DefaultBodyDef();
+	const b3BodyId Body = b3CreateBody(WorldId, &BodyDef);
+	b3ShapeDef ShapeDef = b3DefaultShapeDef();
+	ShapeDef.baseMaterial.friction = Friction;
+	// Same precise broad-phase identity as the box compound: the immutable
+	// level world is category 1, so character-mover queries select it without
+	// admitting dynamic force proxies.
+	ShapeDef.filter.categoryBits = 1ull;
+	ShapeDef.filter.maskBits = UINT64_MAX;
+	const b3ShapeId Shape = b3CreateBakedCompoundShape(Body, &ShapeDef, Compound);
+	if (B3_IS_NULL(Shape))
+	{
+		b3DestroyBody(Body);
+		BakedCompoundStorage.RemoveAt(StorageIndex);
+		return false;
+	}
+	OutCompound = Compound;
+	return true;
 }
 
 bool UBox3DRollbackWorld::ResolveCharacterMover(int32 Handle, FVector StartPosition,
