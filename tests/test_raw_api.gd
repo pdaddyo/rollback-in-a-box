@@ -59,7 +59,7 @@ func create_all_shapes() -> void:
 
 	var hull_body := create_body(constants["b3_dynamicBody"], Vector3(-1, 3, 0))
 	var box_hull: Dictionary = api.b3MakeBoxHull(0.5, 0.5, 0.5)
-	var hull: int = api.b3CreateHullShape(hull_body, shape_definition(), make_buffer(&"b3HullData", box_hull["base"]))
+	var hull: int = api.b3CreateHullShape(hull_body, shape_definition(), make_buffer(&"b3BoxHull", box_hull))
 	expect_shape(hull, "b3_hullShape")
 
 	var mesh_body := create_body(constants["b3_staticBody"], Vector3(1, 0, 0))

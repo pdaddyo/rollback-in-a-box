@@ -127,7 +127,7 @@ func check_set_sphere_on_hull() -> void:
 	# documented legal operation (unlike wrong-family getters, which assert).
 	var body := create_body(constants["b3_dynamicBody"], Vector3(40, 2, 0))
 	var box_hull: Dictionary = api.b3MakeBoxHull(0.5, 0.5, 0.5)
-	var hull: int = api.b3CreateHullShape(body, shape_definition(), make_buffer(&"b3HullData", box_hull["base"]))
+	var hull: int = api.b3CreateHullShape(body, shape_definition(), make_buffer(&"b3BoxHull", box_hull))
 	if not api.b3Shape_IsValid(hull):
 		return fail("hull shape creation failed")
 	if api.b3Shape_GetType(hull) != constants["b3_hullShape"]:
